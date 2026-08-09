@@ -35,7 +35,12 @@ export CONTAINERS=(landing bronze silver gold control quarantine checkpoints)
 # resources stop. Every number below exists to make that harder to hit.
 export BUDGET_AMOUNT="${BUDGET_AMOUNT:-100}"
 export BUDGET_ALERT_THRESHOLDS="${BUDGET_ALERT_THRESHOLDS:-25 50 80 95}"
-export CLUSTER_NODE_TYPE="${CLUSTER_NODE_TYPE:-Standard_DS3_v2}"
+# Standard_DS3_v2 is the node type every Databricks tutorial names, and it has been
+# retired from newer Azure regions — it does not exist in centralindia at all.
+# Standard_D4s_v3 is the current-generation equivalent (4 vCPU, 16 GB) and fits the
+# 4-vCPU regional quota that Azure for Students grants. provision.sh probes anyway
+# and picks something else if this is unavailable.
+export CLUSTER_NODE_TYPE="${CLUSTER_NODE_TYPE:-Standard_D4s_v3}"
 export CLUSTER_AUTOTERMINATE_MINUTES="${CLUSTER_AUTOTERMINATE_MINUTES:-10}"
 export DATABRICKS_SKU="${DATABRICKS_SKU:-premium}"   # premium is required for Unity Catalog
 

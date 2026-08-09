@@ -25,7 +25,7 @@
         "domain": "https://@{linkedService().workspace_url}",
         "authentication": "MSI",
         "workspaceResourceId": "@{linkedService().workspace_resource_id}",
-        "newClusterNodeType": "Standard_DS3_v2",
+        "newClusterNodeType": "Standard_D4s_v3",
         "newClusterNumOfWorker": "0",
         "newClusterVersion": "15.4.x-scala2.12",
         "newClusterInitScripts": [],

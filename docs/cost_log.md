@@ -10,7 +10,7 @@ This log makes spend visible before that happens.
 | Grant | $100 |
 | Alert thresholds | 25% / 50% / 80% / 95% |
 | Workspace SKU | Premium (required for Unity Catalog — see ADR-004) |
-| Node type | `Standard_DS3_v2`, single node, spot with on-demand fallback |
+| Node type | `Standard_D4s_v3`, single node, spot with on-demand fallback |
 | Auto-termination | 10 minutes |
 
 ## What actually costs money

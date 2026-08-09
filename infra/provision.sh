@@ -31,13 +31,148 @@ require_az
 STORAGE_ACCOUNT=$(resolve_storage_account)
 SUBSCRIPTION=$(subscription_id)
 
+# Everything before the plan is read-only. The plan therefore reports the region and
+# node type that were actually *resolved* against this subscription, not the
+# unvalidated defaults — a dry run that prints a node type which cannot be allocated
+# is worse than no dry run, because it inspires confidence it has not earned.
+
+# ------------------------------------------------------- resource providers
+# A subscription only exposes a resource type once its provider is registered, and
+# on a fresh student subscription several are not. Registering is free, idempotent
+# and instant to request — but the create call fails outright without it, which is a
+# poor way to discover the problem half way through a deployment.
+log "Checking resource providers"
+UNREGISTERED=()
+for provider in Microsoft.Storage Microsoft.Databricks Microsoft.DataFactory Microsoft.KeyVault; do
+  state=$(az provider show -n "${provider}" --query registrationState -o tsv 2>/dev/null || echo "Unknown")
+  printf '  %-28s %s\n' "${provider}" "${state}"
+  [[ "${state}" == "Registered" ]] || UNREGISTERED+=("${provider}")
+done
+
+if [[ ${#UNREGISTERED[@]} -gt 0 && "${DRY_RUN}" != true ]]; then
+  for provider in "${UNREGISTERED[@]}"; do
+    log "  registering ${provider}"
+    az provider register -n "${provider}" --output none 2>/dev/null || warn "  could not register ${provider}"
+  done
+  # Registration is asynchronous and the first create call fails without it.
+  for provider in "${UNREGISTERED[@]}"; do
+    for _ in $(seq 1 36); do
+      state=$(az provider show -n "${provider}" --query registrationState -o tsv 2>/dev/null || echo "Unknown")
+      [[ "${state}" == "Registered" ]] && break
+      sleep 5
+    done
+    log "  ${provider}: ${state}"
+    [[ "${state}" == "Registered" ]] || warn "  ${provider} still ${state}; its resource may fail to create"
+  done
+fi
+
+# ------------------------------------------------- region and node type probe
+#
+# Two traps here, both of which cost a half-finished deployment to discover:
+#
+# 1. `Standard_DS3_v2` is the node type every Databricks tutorial names, and it has
+#    been retired from newer regions — it is simply absent from centralindia. Probing
+#    for one hard-coded SKU and falling back to one hard-coded region can therefore
+#    fail twice and still proceed with a node type that cannot be allocated.
+#
+# 2. A SKU's `restrictions` are not uniformly fatal. A restriction with
+#    `type: Zone` means the SKU is unavailable *in availability zones* but usable for
+#    a normal regional deployment, which is what Databricks creates here. Treating
+#    those as fatal rejects every viable node type on this subscription.
+#
+# So: walk a candidate list across both regions, accept Zone-scoped restrictions,
+# reject only Location-scoped ones, and pick the first that survives.
+NODE_CANDIDATES=(
+  "${CLUSTER_NODE_TYPE}"
+  Standard_D4s_v3 Standard_D4s_v5 Standard_D4as_v5 Standard_D4ds_v5
+  Standard_DS3_v2 Standard_F4s_v2
+)
+
+select_node_type() {
+  local region="$1" skus candidate usable
+  skus=$(az vm list-skus --location "${region}" --resource-type virtualMachines -o json 2>/dev/null)
+  [[ -z "${skus}" ]] && return 1
+
+  for candidate in "${NODE_CANDIDATES[@]}"; do
+    usable=$(printf '%s' "${skus}" | python3 -c "
+import json, sys
+name = sys.argv[1]
+for sku in json.load(sys.stdin):
+    if sku.get('name') != name:
+        continue
+    # Location-scoped restrictions mean the SKU is unusable in the region at all.
+    # Zone-scoped restrictions only rule out zonal deployments.
+    if any(r.get('type') == 'Location' for r in (sku.get('restrictions') or [])):
+        sys.exit(0)
+    print(name)
+    sys.exit(0)
+" "${candidate}" 2>/dev/null)
+    if [[ -n "${usable}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+log "Probing usable Databricks node types (this takes a moment)..."
+SELECTED_NODE=""
+for region in "${LOCATION}" "${FALLBACK_LOCATION}"; do
+  log "  checking ${region}..."
+  if SELECTED_NODE=$(select_node_type "${region}"); then
+    LOCATION="${region}"
+    break
+  fi
+  warn "  no usable node type in ${region}"
+  SELECTED_NODE=""
+done
+
+[[ -n "${SELECTED_NODE}" ]] || die "No usable Databricks node type in ${LOCATION} or ${FALLBACK_LOCATION}.
+       Request a quota increase, or set CLUSTER_NODE_TYPE to a SKU your
+       subscription can allocate:  az vm list-skus -l <region> -o table"
+
+if [[ "${SELECTED_NODE}" != "${CLUSTER_NODE_TYPE}" ]]; then
+  warn "${CLUSTER_NODE_TYPE} is unavailable; using ${SELECTED_NODE} instead"
+fi
+CLUSTER_NODE_TYPE="${SELECTED_NODE}"
+log "Region ${LOCATION}, node type ${CLUSTER_NODE_TYPE}"
+
+# ---------------------------------------------------------------- vCPU quota
+# A single-node cluster is one VM. If the regional vCPU limit is smaller than the
+# node, the cluster will never start — and Databricks reports that as an opaque
+# timeout several minutes into the first pipeline run.
+# Note the pipe placement: `[?name=='X'] | [0].capabilities[...]` selects the SKU
+# first and then reads into it. Filtering and projecting in one expression
+# (`[?name=='X'].capabilities[...]`) yields a nested list that flattens to empty,
+# which silently skips the quota check rather than failing it.
+NODE_VCPUS=$(az vm list-skus --location "${LOCATION}" --resource-type virtualMachines \
+  --query "[?name=='${CLUSTER_NODE_TYPE}'] | [0].capabilities[?name=='vCPUs'].value | [0]" -o tsv 2>/dev/null)
+VCPU_LIMIT=$(az vm list-usage --location "${LOCATION}" \
+  --query "[?localName=='Total Regional vCPUs'].limit | [0]" -o tsv 2>/dev/null)
+
+if [[ -n "${NODE_VCPUS}" && -n "${VCPU_LIMIT}" ]]; then
+  log "Regional vCPU quota: ${VCPU_LIMIT}; ${CLUSTER_NODE_TYPE} needs ${NODE_VCPUS}"
+  if (( NODE_VCPUS > VCPU_LIMIT )); then
+    die "${CLUSTER_NODE_TYPE} needs ${NODE_VCPUS} vCPUs but the regional limit is ${VCPU_LIMIT}.
+       The cluster cannot start. Request a quota increase in the portal
+       (Subscriptions > Usage + quotas) before provisioning."
+  fi
+  if (( NODE_VCPUS == VCPU_LIMIT )); then
+    warn "Quota allows exactly one ${CLUSTER_NODE_TYPE} node and nothing else."
+    warn "Only one cluster can run at a time — an ADF job cluster will not start"
+    warn "while an interactive cluster is up. Use 'make stop' between runs."
+  fi
+fi
+
+# ------------------------------------------------------------------- the plan
 cat <<PLAN
 
   MedChain Azure provisioning plan
   ---------------------------------------------------------------
   subscription        ${SUBSCRIPTION}
   resource group      ${RESOURCE_GROUP}
-  location            ${LOCATION}   (fallback: ${FALLBACK_LOCATION})
+  location            ${LOCATION}   (resolved; fallback was ${FALLBACK_LOCATION})
+  node type           ${CLUSTER_NODE_TYPE}   (resolved: ${NODE_VCPUS:-?} vCPU, quota ${VCPU_LIMIT:-?})
   storage account     ${STORAGE_ACCOUNT}   (ADLS Gen2, HNS enabled)
   containers          ${CONTAINERS[*]}
   databricks          ${DATABRICKS_WORKSPACE}   (sku: ${DATABRICKS_SKU})
@@ -60,24 +195,15 @@ cat <<PLAN
 PLAN
 
 if [[ "${DRY_RUN}" == true ]]; then
+  if [[ ${#UNREGISTERED[@]} -gt 0 ]]; then
+    warn "Would register these resource providers first: ${UNREGISTERED[*]}"
+  fi
   log "Dry run — nothing created."
   exit 0
 fi
 
 read -r -p "Create these resources? This spends credit. [y/N] " reply
 [[ "${reply}" =~ ^[Yy]$ ]] || { log "Aborted."; exit 0; }
-
-# --------------------------------------------------------------- region probe
-# Azure for Students frequently has zero quota for Databricks-compatible VM SKUs in
-# some regions. Finding that out *before* creating a resource group and a storage
-# account is much better than failing three steps in with half a deployment.
-log "Checking ${CLUSTER_NODE_TYPE} availability in ${LOCATION}..."
-if ! az vm list-skus --location "${LOCATION}" --size "${CLUSTER_NODE_TYPE}" \
-      --query "[?name=='${CLUSTER_NODE_TYPE}'] | [0].name" -o tsv 2>/dev/null | grep -q .; then
-  warn "${CLUSTER_NODE_TYPE} is not offered in ${LOCATION}; falling back to ${FALLBACK_LOCATION}"
-  LOCATION="${FALLBACK_LOCATION}"
-fi
-log "Using region ${LOCATION}"
 
 # ------------------------------------------------------------ resource group
 log "Resource group ${RESOURCE_GROUP}"

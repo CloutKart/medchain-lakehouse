@@ -18,7 +18,7 @@ publish.
 | insurance_claims | Weekly | `tr_weekly_sunday` |
 | doctor_assignments, procedure_master | Weekly | `tr_weekly_sunday` |
 
-**Expected runtime** (single-node `Standard_DS3_v2`, full 3-year dataset):
+**Expected runtime** (single-node `Standard_D4s_v3`, full 3-year dataset):
 
 | Layer | Duration | Rows |
 |---|---|---|
