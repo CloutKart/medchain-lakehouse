@@ -147,6 +147,45 @@ difference is measurable rather than asserted — it is 60,990 consultations.
 
 ## Quickstart
 
+### Just look at the dashboard
+
+If you have access to the Azure subscription this runs on, one command is enough.
+Works on Windows, macOS and Linux:
+
+```bash
+python quickstart.py
+```
+
+```
+> quickstart.cmd                      (Windows, or double-click it)
+```
+
+It signs you in if needed, finds the storage account, downloads the pre-computed
+aggregates from ADLS, builds the frontend and serves it on
+[localhost:4173](http://localhost:4173).
+
+**Nothing is recomputed.** Bronze, Silver, Gold and the quality scorecard were built
+on Databricks and the dashboard reads what that run produced — a full pipeline run
+takes about an hour of cluster time and costs real money, so the default path does
+not repeat it. The footer states which engine and store produced the numbers you are
+looking at.
+
+Needs Python 3.9+, Node 18+ and the Azure CLI. Nothing else — no Spark, no JDK, no
+Databricks CLI.
+
+<details>
+<summary>Options</summary>
+
+```
+python quickstart.py --no-serve             set up, don't serve
+python quickstart.py --port 8080            serve elsewhere
+python quickstart.py --skip-data            rebuild the UI, keep the data
+python quickstart.py --storage-account NAME skip account discovery
+```
+</details>
+
+### Build the whole platform yourself
+
 ```bash
 make setup                 # Python 3.11 venv + project-local Temurin JDK 17
 make doctor                # verify Spark 3.5 + Delta 3.2 actually work

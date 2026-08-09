@@ -45,5 +45,7 @@ c, f = h["clinical"], h["financial"]
 print(f"  readmission gap : {c['readmission_gap_pp']:.2f} pp")
 print(f"  misattributed   : {h['attribution']['misattributed']:,}")
 print(f"  recoverable     : Rs {f['room_excess'] / 1e7:,.0f} Cr")
-print(f"  exported at     : {h['generated_at']}")
+s = h["source"]
+print(f"  computed by     : {s['engine']} on {s['store']} ({s['environment']})")
+print(f"  exported at     : {s['generated_at']}")
 PY

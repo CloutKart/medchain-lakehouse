@@ -37,6 +37,49 @@ def headline() -> dict:
     return load("headline")
 
 
+class TestProvenanceIsMeasuredNotAsserted:
+    """The footer's "Source" line has to describe the run that made the file.
+
+    It used to be a hardcoded string in the frontend, so it read the same whether the
+    numbers came from a laptop or from the cluster — the one claim on the page that
+    could never be wrong because it was never checked. Now the export measures it.
+    """
+
+    @pytest.mark.parametrize("panel", PANELS)
+    def test_every_panel_carries_its_origin(self, panel):
+        source = load(panel).get("source")
+        assert source, f"{panel}.json has no source block"
+        for field in ("environment", "engine", "store", "generated_at"):
+            assert source.get(field), f"{panel}.source.{field} is missing or empty"
+
+    def test_all_panels_agree_on_one_origin(self):
+        """Panels are written in one pass, so a disagreement means a stale file."""
+        sources = {p: load(p)["source"] for p in PANELS}
+        distinct = {json.dumps(s, sort_keys=True) for s in sources.values()}
+        assert len(distinct) == 1, (
+            "panels disagree about where they came from, which means at least one is "
+            f"left over from an earlier export: {sources}"
+        )
+
+    def test_engine_matches_the_backend_that_ran(self):
+        """Reported engine must follow the backend class, not a literal."""
+        from medchain.config import load_config
+        from medchain.web.export import DuckDBBackend, SparkBackend, provenance
+
+        cfg = load_config("local")
+        assert provenance(cfg, DuckDBBackend(con=None))["engine"] == "DuckDB"
+        spark_like = SparkBackend.__new__(SparkBackend)  # no cluster needed
+        assert "Spark" in provenance(cfg, spark_like)["engine"]
+
+    def test_store_follows_the_environment(self):
+        from medchain.config import load_config
+        from medchain.web.export import DuckDBBackend, provenance
+
+        local = provenance(load_config("local"), DuckDBBackend(con=None))
+        assert local["store"] == "local filesystem"
+        assert local["environment"] == "local"
+
+
 class TestExportShape:
     @pytest.mark.parametrize("panel", PANELS)
     def test_panel_exists_and_parses(self, panel):

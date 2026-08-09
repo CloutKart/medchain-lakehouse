@@ -28,6 +28,17 @@ export interface Headline {
     reconciled_rate: number;
     claims: number;
   };
+  source: Provenance;
+}
+
+/** Where a panel's numbers came from. Stamped by the export, never by the page. */
+export interface Provenance {
+  /** Config environment the export ran under, e.g. "local" or "azure". */
+  environment: string;
+  /** Query engine that computed the numbers, e.g. "DuckDB" or "Databricks (Spark)". */
+  engine: string;
+  /** Where the Gold layer was read from, e.g. "ADLS Gen2". */
+  store: string;
   generated_at: string;
 }
 

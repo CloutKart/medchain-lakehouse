@@ -8,6 +8,8 @@
 
 import type { ReactNode } from "react";
 
+import type { Provenance } from "../data";
+
 /* ------------------------------------------------------------ hero figure */
 
 export function HeroFigure({
@@ -134,15 +136,13 @@ export function Rail({
   active,
   theme,
   onTheme,
-  generatedAt,
-  environment,
+  source,
 }: {
   items: NavItem[];
   active: string;
   theme: "light" | "dark";
   onTheme: () => void;
-  generatedAt: string;
-  environment: string;
+  source: Provenance;
 }) {
   return (
     <nav className="rail" aria-label="Sections">
@@ -200,11 +200,20 @@ export function Rail({
         <dl className="rail__meta">
           <div>
             <dt>Source</dt>
-            <dd>Gold layer · {environment}</dd>
+            <dd>Gold layer · {source.store}</dd>
+          </div>
+          <div>
+            <dt>Computed by</dt>
+            <dd>{source.engine}</dd>
           </div>
           <div>
             <dt>Exported</dt>
-            <dd>{new Date(generatedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</dd>
+            <dd>
+              {new Date(source.generated_at).toLocaleString("en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </dd>
           </div>
         </dl>
       </div>

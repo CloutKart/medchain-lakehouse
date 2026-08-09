@@ -127,8 +127,7 @@ export default function App() {
         active={active}
         theme={theme}
         onTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-        generatedAt={headline.generated_at}
-        environment={import.meta.env.MODE === "production" ? "batch export" : "batch export"}
+        source={headline.source}
       />
 
       <main className="main">

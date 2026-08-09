@@ -249,11 +249,12 @@ def headline(con) -> dict[str, Any]:
     """,
     )
 
+    # No timestamp here: export() stamps `source` onto every panel, and two
+    # independently taken clocks would eventually disagree about one export.
     return {
         "clinical": clinical,
         "attribution": attribution,
         "financial": financial,
-        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
 
 
@@ -543,14 +544,35 @@ PANELS = {
 }
 
 
+def provenance(cfg: Config, con) -> dict[str, Any]:
+    """Where these numbers came from, recorded by the run that produced them.
+
+    The dashboard footer used to state its source as a hardcoded string, which meant
+    it read the same whether the data came from a laptop or from the cluster. A
+    number is only as trustworthy as its origin, and a page reporting on a data
+    platform should hold itself to the standard it reports on — so the origin is
+    measured here and carried in the payload rather than typed into the frontend.
+    """
+    return {
+        "environment": cfg.env,
+        "engine": "Databricks (Spark)" if isinstance(con, SparkBackend) else "DuckDB",
+        "store": "ADLS Gen2" if cfg.is_azure else "local filesystem",
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+
+
 def export(cfg: Config, out_dir: Path, spark=None) -> dict[str, int]:
     """Run every panel and write one JSON file each."""
     out_dir.mkdir(parents=True, exist_ok=True)
     con = connect(cfg, spark)
     sizes: dict[str, int] = {}
+    source = provenance(cfg, con)
     try:
         for name, fn in PANELS.items():
             payload = fn(con)
+            # Stamped on every panel, not just one, so a stale file cannot sit
+            # alongside fresh ones while the page reports a single origin for all.
+            payload["source"] = source
             target = out_dir / f"{name}.json"
             # separators drops the whitespace; these files are machine-read and the
             # saving is roughly a third of the transfer.
