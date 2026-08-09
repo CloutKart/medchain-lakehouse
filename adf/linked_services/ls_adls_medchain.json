@@ -1,0 +1,8 @@
+{
+  "type": "AzureBlobFS",
+  "description": "ADLS Gen2 holding the landing, bronze, silver and gold containers. Authenticates as the Data Factory's system-assigned managed identity, which provision.sh grants Storage Blob Data Contributor — so there is no key or connection string in this definition and it is safe to commit.",
+  "typeProperties": {
+    "url": "https://${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  },
+  "annotations": ["medchain"]
+}

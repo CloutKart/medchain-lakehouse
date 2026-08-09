@@ -4,7 +4,14 @@
 #
 # Data is generated locally rather than on the cluster on purpose: generation is
 # single-threaded pandas/numpy work that gains nothing from Spark, and doing it on a
-# cluster would burn DBUs producing data that a laptop makes in two minutes.
+# cluster would burn DBUs producing data a laptop makes in two minutes.
+#
+# Uses `az storage blob upload-batch`, which transfers through the Python SDK.
+# The obvious alternative, `az storage fs directory upload`, shells out to AzCopy and
+# downloads it on first use — and when that download fails (restricted network, a
+# dead release URL) the command still exits 0 while transferring nothing. A silent
+# no-op that reports success is worse than a failure, so this script verifies the
+# remote file count afterwards rather than trusting the exit code.
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 require_az
@@ -13,18 +20,62 @@ load_state
 LOCAL_LANDING="${LOCAL_LANDING:-./data/landing}"
 [[ -d "${LOCAL_LANDING}" ]] || die "No local data at ${LOCAL_LANDING}. Run: make gen SCALE=1.0"
 
+LOCAL_FILES=$(find "${LOCAL_LANDING}" -type f | wc -l)
 SIZE=$(du -sh "${LOCAL_LANDING}" | cut -f1)
-log "Uploading ${SIZE} from ${LOCAL_LANDING} to ${STORAGE_ACCOUNT}/landing"
+log "Uploading ${SIZE} (${LOCAL_FILES} files) to ${STORAGE_ACCOUNT}/landing"
 
-# --recursive with the directory preserved keeps the source/initial_load|incremental
-# layout that Bronze's ingest_date extraction depends on.
-az storage fs directory upload \
-  --account-name "${STORAGE_ACCOUNT}" \
-  --file-system landing \
-  --source "${LOCAL_LANDING}" \
-  --recursive \
-  --auth-mode login \
-  --output none
+# One batch per source directory. Uploading the whole tree in a single call gives no
+# progress signal for several minutes and no way to resume a partial transfer; per
+# source, a failure names the source that failed.
+for source_dir in "${LOCAL_LANDING}"/*/; do
+  source_name=$(basename "${source_dir}")
+  count=$(find "${source_dir}" -type f | wc -l)
+  printf '  %-24s %3d files ... ' "${source_name}" "${count}"
+  if az storage blob upload-batch \
+       --destination landing \
+       --destination-path "${source_name}" \
+       --source "${source_dir}" \
+       --account-name "${STORAGE_ACCOUNT}" \
+       --auth-mode login \
+       --overwrite \
+       --output none >/dev/null 2>&1; then
+    echo "ok"
+  else
+    echo "FAILED"
+    warn "  retrying ${source_name} with output shown"
+    az storage blob upload-batch \
+      --destination landing --destination-path "${source_name}" \
+      --source "${source_dir}" --account-name "${STORAGE_ACCOUNT}" \
+      --auth-mode login --overwrite --output none 2>&1 | tail -5
+  fi
+done
 
-log "Upload complete. Verify with:"
+# ------------------------------------------------------------------- verify
+# The count that matters is what is actually in the container, not what the CLI
+# claimed. `fs file list` returns directories alongside files, so they have to be
+# separated — and `isDirectory` is a JSON boolean. A JMESPath filter comparing it to
+# the string 'false' matches nothing and reports an empty container after a perfectly
+# good upload, so the counting happens in Python where the type is unambiguous.
+read -r REMOTE_FILES REMOTE_MB < <(
+  az storage fs file list -f landing \
+    --account-name "${STORAGE_ACCOUNT}" --auth-mode login --output json 2>/dev/null \
+  | python3 -c "
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+except Exception:
+    print(0, 0); sys.exit()
+files = [r for r in rows if not r.get('isDirectory')]
+print(len(files), round(sum(r.get('contentLength') or 0 for r in files) / 1e6, 1))
+"
+)
+
+log "Local files: ${LOCAL_FILES}   Remote files: ${REMOTE_FILES} (${REMOTE_MB} MB)"
+
+if [[ "${REMOTE_FILES}" -lt "${LOCAL_FILES}" ]]; then
+  die "Upload incomplete: ${REMOTE_FILES} of ${LOCAL_FILES} files present in ADLS."
+fi
+
+log "Upload verified."
+log "Inspect with:"
 log "  az storage fs file list -f landing --account-name ${STORAGE_ACCOUNT} --auth-mode login -o table"

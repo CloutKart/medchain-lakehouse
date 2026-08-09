@@ -20,16 +20,54 @@ from typing import Any
 
 import yaml
 
-CONF_DIR = Path(__file__).resolve().parents[2] / "conf"
+
+class ConfigError(RuntimeError):
+    """Raised when configuration is missing or internally inconsistent."""
+
+
+def _resolve_conf_dir() -> Path:
+    """Locate the ``conf`` directory, whichever way the package was installed.
+
+    Three cases, in priority order:
+
+    1. ``MEDCHAIN_CONF_DIR`` — an explicit override, for pointing a cluster at
+       configuration deployed separately from the wheel.
+    2. ``medchain/conf`` inside the installed package. ``pyproject.toml``
+       force-includes the repository's ``conf`` tree here, so a wheel is
+       self-contained.
+    3. ``<repo>/conf`` two levels above this file — the editable-install and
+       source-checkout layout.
+
+    Case 2 is why this is a function rather than a one-line expression. Resolving
+    only against ``parents[2]`` works perfectly in the repository and silently
+    points at ``<site-packages>/../../conf`` once installed as a wheel, which is
+    where a Databricks cluster would look for it and not find it.
+    """
+    override = os.environ.get("MEDCHAIN_CONF_DIR")
+    if override:
+        candidate = Path(override).expanduser().resolve()
+        if not (candidate / "base.yaml").exists():
+            raise ConfigError(f"MEDCHAIN_CONF_DIR={override} does not contain base.yaml")
+        return candidate
+
+    here = Path(__file__).resolve()
+    for candidate in (here.parent / "conf", here.parents[2] / "conf"):
+        if (candidate / "base.yaml").exists():
+            return candidate
+
+    raise ConfigError(
+        "Cannot locate the conf directory. Looked for a packaged copy at "
+        f"{here.parent / 'conf'} and a source checkout at {here.parents[2] / 'conf'}. "
+        "Set MEDCHAIN_CONF_DIR to point at it explicitly."
+    )
+
+
+CONF_DIR = _resolve_conf_dir()
 
 _VAR_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 # Layers that map to a physical storage location.
 LAYERS = ("landing", "bronze", "silver", "gold", "control", "quarantine", "checkpoints", "truth")
-
-
-class ConfigError(RuntimeError):
-    """Raised when configuration is missing or internally inconsistent."""
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

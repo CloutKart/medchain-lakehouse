@@ -1,0 +1,17 @@
+{
+  "type": "Binary",
+  "description": "Bronze landing zone, partitioned by source and ingest date. The Bronze notebook also derives ingest_date from the file name, so the physical path and the Delta partition column agree and a single day can be reprocessed with replaceWhere.",
+  "linkedServiceName": { "referenceName": "ls_adls_medchain", "type": "LinkedServiceReference" },
+  "parameters": {
+    "source_name": { "type": "String" },
+    "ingest_date": { "type": "String" }
+  },
+  "typeProperties": {
+    "location": {
+      "type": "AzureBlobFSLocation",
+      "fileSystem": "bronze",
+      "folderPath": "@concat('_landed/', dataset().source_name, '/ingest_date=', dataset().ingest_date)"
+    }
+  },
+  "annotations": ["medchain", "bronze"]
+}

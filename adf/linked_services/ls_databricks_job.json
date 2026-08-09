@@ -1,0 +1,22 @@
+{
+  "type": "AzureDatabricks",
+  "description": "Databricks JOB compute — a new single-node cluster per run, terminated when the run ends. Job DBUs cost roughly half the all-purpose rate, and nothing is left idling. The wheel is attached from a Unity Catalog volume rather than DBFS, which is deprecated and restricted under UC.",
+  "typeProperties": {
+    "domain": "https://${WORKSPACE_URL}",
+    "authentication": "MSI",
+    "workspaceResourceId": "${WORKSPACE_RESOURCE_ID}",
+    "newClusterNodeType": "${CLUSTER_NODE_TYPE}",
+    "newClusterNumOfWorker": "1",
+    "newClusterVersion": "15.4.x-scala2.12",
+    "newClusterSparkConf": {
+      "spark.master": "local[*, 4]",
+      "spark.databricks.cluster.profile": "singleNode"
+    },
+    "newClusterCustomTags": {
+      "ResourceClass": "SingleNode",
+      "project": "medchain"
+    },
+    "newClusterInitScripts": []
+  },
+  "annotations": ["medchain"]
+}

@@ -1,0 +1,14 @@
+{
+  "type": "Binary",
+  "description": "Landing folder for one source, used by Get Metadata to confirm the export arrived.",
+  "linkedServiceName": { "referenceName": "ls_adls_medchain", "type": "LinkedServiceReference" },
+  "parameters": { "source_name": { "type": "String" } },
+  "typeProperties": {
+    "location": {
+      "type": "AzureBlobFSLocation",
+      "fileSystem": "landing",
+      "folderPath": "@dataset().source_name"
+    }
+  },
+  "annotations": ["medchain", "landing"]
+}

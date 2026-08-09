@@ -43,6 +43,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/medchain"]
 
+# Ship conf/ inside the wheel as medchain/conf. The package reads its source
+# contracts, quality checks and seed reference data at runtime, so a wheel without
+# them installs cleanly and then fails on the first call — on a Databricks cluster,
+# several minutes into a pipeline run. config._resolve_conf_dir finds this copy.
+[tool.hatch.build.targets.wheel.force-include]
+"conf" = "medchain/conf"
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
