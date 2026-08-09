@@ -32,27 +32,43 @@ first=true
 for threshold in ${BUDGET_ALERT_THRESHOLDS}; do
   [[ "${first}" == true ]] || notifications+=","
   first=false
+  # No `thresholdType` field: azure-cli 2.8x removed it from the notification model
+  # ("Model 'AAZObjectArg' has no field named 'thresholdType'") and the API defaults
+  # to Actual, which is what we want anyway — alert on money actually spent, not on
+  # a forecast.
   notifications+="\"alert-${threshold}\":{
     \"enabled\":true,
     \"operator\":\"GreaterThanOrEqualTo\",
     \"threshold\":${threshold},
-    \"contactEmails\":[\"${CONTACT_EMAIL}\"],
-    \"thresholdType\":\"Actual\"
+    \"contactEmails\":[\"${CONTACT_EMAIL}\"]
   }"
 done
 notifications+="}"
 
-az consumption budget create-with-rg \
+# azure-cli 2.8x takes the window as a single --time-period object. The older
+# --start-date/--end-date pair was removed and now fails with "unrecognized
+# arguments", so the error looks like a permissions problem when it is a syntax one.
+# Full ISO 8601 datetimes, not bare dates. The API rejects "2026-08-01" with
+# "Start date should be the first day of the month" — which it plainly is. The
+# message is about the format it could not parse, not the day of the month.
+time_period="{\"startDate\":\"${START_DATE}T00:00:00Z\",\"endDate\":\"${END_DATE}T00:00:00Z\"}"
+
+error=$(az consumption budget create-with-rg \
   --budget-name "${BUDGET_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --amount "${BUDGET_AMOUNT}" \
   --category Cost \
   --time-grain Monthly \
-  --start-date "${START_DATE}" \
-  --end-date "${END_DATE}" \
+  --time-period "${time_period}" \
   --notifications "${notifications}" \
-  --output none 2>/dev/null \
-  && log "Budget created" \
-  || warn "Could not create the budget. Student subscriptions sometimes lack the
-       Microsoft.Consumption permissions for this. Set a budget manually in the
-       portal (Cost Management > Budgets) and keep using 'make cost'."
+  --output none 2>&1) \
+  && log "Budget created: \$${BUDGET_AMOUNT}/month, alerts at ${BUDGET_ALERT_THRESHOLDS}%" \
+  || {
+    # Print the real reason rather than guessing at it. Student subscriptions do
+    # sometimes lack Microsoft.Consumption write access, but so far every failure
+    # here has been a CLI contract change, and swallowing the message hid that.
+    warn "Could not create the budget:"
+    printf '       %s\n' "${error}" | head -5 >&2
+    warn "Set one manually in the portal (Cost Management > Budgets)."
+    warn "The real cost controls are 'make stop' and autotermination regardless."
+  }
