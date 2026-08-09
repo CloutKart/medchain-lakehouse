@@ -30,11 +30,12 @@ generate = [
     "faker>=30.0",
     "numpy>=1.26",
 ]
-dashboard = [
-    "streamlit>=1.40",
+# Reading Gold outside Spark: DuckDB + delta-rs. Used by the web export and by any
+# local analysis. Not in the base wheel — see the dependency ADR in
+# tests/unit/test_packaging.py.
+web = [
     "deltalake>=0.20",
     "duckdb>=1.1",
-    "plotly>=5.24",
 ]
 dev = [
     "pytest>=8.3",
@@ -47,6 +48,7 @@ dev = [
 [project.scripts]
 medchain-gen = "medchain.generate.cli:main"
 medchain-run = "medchain.cli:main"
+medchain-web-export = "medchain.web.export:main"
 
 [build-system]
 requires = ["hatchling"]

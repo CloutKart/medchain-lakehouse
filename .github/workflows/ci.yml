@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[local,generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,web,dev]'
 
       - run: uv run ruff check src tests dashboards
       - run: uv run ruff format --check src tests dashboards
@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[local,generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,web,dev]'
 
       - name: Verify the toolchain can start Spark and Delta
         run: uv run python -m medchain.doctor
@@ -101,7 +101,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[local,generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,web,dev]'
 
       - name: Integration tests
         run: uv run pytest tests/integration -q --junitxml=junit-integration.xml
@@ -112,6 +112,41 @@ jobs:
         with:
           name: integration-results
           path: junit-integration.xml
+
+  frontend:
+    name: Dashboard build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: dashboards/web/package-lock.json
+
+      - name: Install
+        working-directory: dashboards/web
+        run: npm ci
+
+      - name: Typecheck and build
+        working-directory: dashboards/web
+        # The export JSON is gitignored, so the build runs against fixtures committed
+        # under public/data-fixtures. This proves the app compiles and bundles; the
+        # numbers themselves are asserted by tests/unit/test_web_export.py.
+        run: |
+          mkdir -p public/data
+          cp -n public/data-fixtures/*.json public/data/ 2>/dev/null || true
+          npm run build
+
+      - name: Bundle size
+        working-directory: dashboards/web
+        # A dashboard that ships megabytes of JS defeats the point of exporting
+        # pre-aggregated JSON in the first place.
+        run: |
+          size=$(du -sk dist | cut -f1)
+          echo "dist is ${size} KB"
+          test "$size" -lt 1024 || { echo "bundle exceeded 1 MB"; exit 1; }
 
   build:
     name: Build wheel

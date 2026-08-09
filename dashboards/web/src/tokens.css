@@ -1,0 +1,182 @@
+/* MedChain design tokens.
+ *
+ * The categorical palette below was not chosen by eye — it was run through the
+ * dataviz validator. The first candidate FAILED: orange next to yellow measured
+ * ΔE 13.7 in normal vision, which means full-colour readers cannot reliably tell
+ * the two apart. The order here passes every hard check:
+ *
+ *   light  ΔE 9.2 deutan · 26.6 tritan · 27.6 normal
+ *   dark   passes with no warnings at all
+ *
+ * One standing obligation carried into the components: aqua sits at 2.74:1 against
+ * the light surface, below the 3:1 floor. Anything drawn in aqua must carry a direct
+ * label or appear in the table view. That is why every chart here has a table toggle.
+ *
+ * Dark mode is a *selected* set of steps from the same ramps, validated against the
+ * dark surface — not an inverted filter over the light one.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,500;0,600;1,6..72,400&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  /* ---- categorical: fixed order, never cycled ---- */
+  --cat-1: #2a78d6; /* blue    — primary series, the "correct"/network value */
+  --cat-2: #eb6834; /* orange  — the contrasting series */
+  --cat-3: #1baf7a; /* aqua    — third series (label obligation, see above) */
+  --cat-4: #4a3aa7; /* violet  — fourth series */
+
+  /* ---- sequential: one hue, light → dark. Occupancy heatmap. ---- */
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+
+  /* ---- diverging: two poles + neutral midpoint. Misattribution. ---- */
+  --div-neg: #2a78d6;
+  --div-mid: #e1e0d9;
+  --div-pos: #eb6834;
+
+  /* ---- status: reserved. Never reused as a series colour. Always with a
+         label and an icon, so state is never carried by colour alone. ---- */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* ---- surfaces & ink ---- */
+  --surface: #fcfcfb;
+  --plane: #f9f9f7;
+  --raised: #ffffff;
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --border-strong: rgba(11, 11, 11, 0.16);
+  --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.04), 0 1px 3px rgba(11, 11, 11, 0.03);
+  --shadow-md: 0 2px 4px rgba(11, 11, 11, 0.04), 0 8px 24px rgba(11, 11, 11, 0.06);
+
+  /* de-emphasis grey for the "emphasis" chart form: one series in the accent hue,
+     the rest recede to this. */
+  --recede: #c9c8c1;
+
+  /* ---- type ---- */
+  --font-display: "Newsreader", Georgia, serif;
+  --font-ui: "Public Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --step--1: clamp(0.76rem, 0.74rem + 0.1vw, 0.81rem);
+  --step-0: clamp(0.9rem, 0.87rem + 0.15vw, 0.97rem);
+  --step-1: clamp(1.1rem, 1.04rem + 0.3vw, 1.28rem);
+  --step-2: clamp(1.4rem, 1.28rem + 0.6vw, 1.75rem);
+  --step-3: clamp(1.85rem, 1.6rem + 1.2vw, 2.5rem);
+  --step-4: clamp(2.6rem, 2.1rem + 2.5vw, 4.2rem);
+
+  /* ---- space ---- */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+
+  --radius: 3px;
+  --radius-lg: 6px;
+  --rail-w: 232px;
+}
+
+:root[data-theme="dark"] {
+  --cat-1: #3987e5;
+  --cat-2: #d95926;
+  --cat-3: #199e70;
+  --cat-4: #9085e9;
+
+  --seq-100: #0d366b;
+  --seq-200: #184f95;
+  --seq-300: #256abf;
+  --seq-400: #3987e5;
+  --seq-500: #6da7ec;
+  --seq-600: #9ec5f4;
+  --seq-700: #cde2fb;
+
+  --div-neg: #3987e5;
+  --div-mid: #2c2c2a;
+  --div-pos: #d95926;
+
+  --surface: #1a1a19;
+  --plane: #0d0d0d;
+  --raised: #222220;
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --recede: #4a4a46;
+  --shadow-sm: none;
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ------------------------------------------------------------------ reset */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* Tabular figures everywhere by default: numbers in a dashboard sit in columns
+     and must not jitter as they change. */
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.011em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Respect the reader. The page-load reveal is decoration, not information. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

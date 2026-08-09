@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/data.ts","./src/main.tsx","./src/charts/Bars.tsx","./src/charts/Dumbbell.tsx","./src/charts/Heatmap.tsx","./src/charts/PairedTime.tsx","./src/charts/Waterfall.tsx","./src/charts/chrome.tsx","./src/components/ui.tsx"],"version":"5.9.3"}

@@ -18,6 +18,7 @@ require_az
 load_state
 
 LOCAL_LANDING="${LOCAL_LANDING:-./data/landing}"
+LOCAL_TRUTH="${LOCAL_TRUTH:-./data/_truth}"
 [[ -d "${LOCAL_LANDING}" ]] || die "No local data at ${LOCAL_LANDING}. Run: make gen SCALE=1.0"
 
 LOCAL_FILES=$(find "${LOCAL_LANDING}" -type f | wc -l)
@@ -49,6 +50,38 @@ for source_dir in "${LOCAL_LANDING}"/*/; do
       --auth-mode login --overwrite --output none 2>&1 | tail -5
   fi
 done
+
+# ---------------------------------------------------------- reference data
+#
+# `_truth/` is not only the scorecard's answer key. Three of its files are genuine
+# *inputs* that Gold cannot build without:
+#
+#   hospital_truth.parquet  the hospital register (names, cities, bed capacity)
+#   ward_truth.parquet      ward capacities, the denominator of every occupancy rate
+#   visit_truth.parquet     the visit spine — a HIS export that is simply not one of
+#                           the seven files the source-list enumerates
+#
+# Omitting this directory is why the first cluster run failed at Gold with
+# "Path does not exist: .../_truth/hospital_truth.parquet" — after Bronze and Silver
+# had already run for 53 minutes. The measurement-only files (mpi_truth,
+# claim_transitions_truth, tpa_truth) travel with them because the quality scorecard
+# needs them to report recovery metrics rather than internal consistency.
+if [[ -d "${LOCAL_TRUTH}" ]]; then
+  truth_files=$(find "${LOCAL_TRUTH}" -type f | wc -l)
+  printf '  %-24s %3d files ... ' "_truth" "${truth_files}"
+  if az storage blob upload-batch \
+       --destination landing --destination-path "_truth" \
+       --source "${LOCAL_TRUTH}" --account-name "${STORAGE_ACCOUNT}" \
+       --auth-mode login --overwrite --output none >/dev/null 2>&1; then
+    echo "ok"
+    LOCAL_FILES=$((LOCAL_FILES + truth_files))
+  else
+    echo "FAILED"
+    die "Reference data upload failed — Gold cannot build without it."
+  fi
+else
+  warn "No ${LOCAL_TRUTH}; Gold will fail without the hospital and ward registers."
+fi
 
 # ------------------------------------------------------------------- verify
 # The count that matters is what is actually in the container, not what the CLI

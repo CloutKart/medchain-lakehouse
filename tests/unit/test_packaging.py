@@ -135,10 +135,9 @@ class TestWheelDependencies:
         """Local dev, CI and Docker must all install `local`, or Spark is missing."""
         for relative in ("Makefile", ".github/workflows/ci.yml", "docker/Dockerfile.dev"):
             text = (REPO_ROOT / relative).read_text()
-            if "generate,dashboard,dev" in text:
-                assert "local,generate,dashboard,dev" in text, (
-                    f"{relative} installs the extras without `local`; Spark would be absent"
-                )
+            assert "'.[local," in text or "[local," in text, (
+                f"{relative} installs the extras without `local`; Spark would be absent"
+            )
 
 
 class TestNoAccidentalDataDependency:

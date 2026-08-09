@@ -36,7 +36,7 @@ jdk:  ## Install a project-local Temurin JDK 17 (no sudo, system JDK untouched)
 .PHONY: setup
 setup: jdk  ## Create the venv and install all dependency groups
 	$(UV) venv --python 3.11
-	$(UV) pip install -e '.[local,generate,dashboard,dev]'
+	$(UV) pip install -e '.[local,generate,web,dev]'
 	@echo "Setup complete. JAVA_HOME=$(JAVA_HOME)"
 
 .PHONY: doctor
@@ -67,9 +67,26 @@ run-quality:  ## Evaluate the data quality scorecard
 run-local:  ## Full pipeline: bronze -> silver -> gold -> quality
 	$(UV) run medchain-run all --date $(DATE)
 
-.PHONY: dashboard
-dashboard:  ## Launch the Streamlit dashboard over the Gold layer
-	$(UV) run streamlit run dashboards/streamlit_app.py
+# ---------------------------------------------------------------- dashboard
+WEB := dashboards/web
+
+.PHONY: web-data web-install web-dev web-build web-preview web
+web-data:  ## Export the Gold layer to JSON for the dashboard
+	$(UV) run medchain-web-export
+
+web-install:  ## Install frontend dependencies
+	cd $(WEB) && npm install
+
+web-dev: web-data  ## Dashboard dev server with hot reload (localhost:5173)
+	cd $(WEB) && npm run dev
+
+web-build: web-data  ## Production build into dashboards/web/dist
+	cd $(WEB) && npm run build
+
+web-preview:  ## Serve the production build (localhost:4173)
+	cd $(WEB) && npm run preview
+
+web: web-build web-preview  ## Build and serve
 
 .PHONY: questions
 questions:  ## Print the 7 business questions with their current answers

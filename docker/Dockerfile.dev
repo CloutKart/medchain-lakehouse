@@ -27,10 +27,10 @@ WORKDIR /work
 # Dependencies are installed from the manifest alone so this layer caches across
 # source edits.
 COPY pyproject.toml ./
-RUN uv venv --python 3.11 && uv pip install -e '.[local,generate,dashboard,dev]' || true
+RUN uv venv --python 3.11 && uv pip install -e '.[local,generate,web,dev]' || true
 
 COPY . .
-RUN uv pip install -e '.[local,generate,dashboard,dev]'
+RUN uv pip install -e '.[local,generate,web,dev]'
 
 # Warm the Delta jar into the image so the first run is not an Ivy download.
 RUN uv run python -m medchain.doctor || true
