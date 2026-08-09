@@ -177,7 +177,11 @@ def run(spark: SparkSession, cfg: Config, ctx: RunContext) -> dict[str, int]:
         raise FileNotFoundError(f"Bronze procedure master not found at {bronze_path}")
 
     # The catalogue is re-exported in full each week; keep the latest version only.
-    latest = Window.partitionBy("procedure_code").orderBy(F.col("ingestion_ts").desc())
+    # The weekly catalogue refresh lands every row with the same ingestion_ts, so
+    # source_file breaks what would otherwise be a whole-batch tie.
+    latest = Window.partitionBy("procedure_code").orderBy(
+        F.col("ingestion_ts").desc(), F.col("source_file").desc()
+    )
     procedures = (
         read(spark, bronze_path)
         .withColumn("_rn", F.row_number().over(latest))

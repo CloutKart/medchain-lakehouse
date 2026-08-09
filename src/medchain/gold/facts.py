@@ -140,8 +140,14 @@ def build_fact_patient_visit(spark: SparkSession, cfg: Config, ctx: RunContext) 
     inpatient = F.col("admission_type").isin(["IPD", "EMERGENCY"])
 
     # Network scope: ordered by the resolved person, across all hospitals.
-    net_window = Window.partitionBy("mpi_id").orderBy("admission_date")
-    hosp_window = Window.partitionBy("mpi_id", "hospital_id").orderBy("admission_date")
+    # visit_id is the tie-break, and it is not optional. 1,679 patients in this
+    # dataset have two or more visits sharing an admission date; ordering on the date
+    # alone leaves lag() free to pick either, and different cluster shapes pick
+    # differently. That was observed: the same Gold build produced 7,474 hidden
+    # readmissions locally and 7,483 on Databricks. A clinical metric that changes
+    # with executor count is not a metric.
+    net_window = Window.partitionBy("mpi_id").orderBy("admission_date", "visit_id")
+    hosp_window = Window.partitionBy("mpi_id", "hospital_id").orderBy("admission_date", "visit_id")
 
     visits = (
         visits.withColumn("_prev_discharge_net", F.lag("discharge_date").over(net_window))

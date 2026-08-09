@@ -97,7 +97,10 @@ def enrich_transitions(transitions: DataFrame, cfg: Config) -> DataFrame:
     is the dwell time of the *previous* state, attributed to that state, not to this
     one.
     """
-    ordered = Window.partitionBy("claim_id").orderBy("status_date", "status_code")
+    # transition_key completes the ordering. (claim, status, date) is already the
+    # table's key so a genuine tie is impossible, but relying on that leaves the
+    # sequence numbering dependent on an invariant enforced elsewhere.
+    ordered = Window.partitionBy("claim_id").orderBy("status_date", "status_code", "transition_key")
     enriched = (
         transitions.withColumn("transition_seq", F.row_number().over(ordered))
         .withColumn("prev_status", F.lag("status_code").over(ordered))
