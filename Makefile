@@ -74,6 +74,9 @@ WEB := dashboards/web
 web-data:  ## Export the Gold layer to JSON for the dashboard
 	$(UV) run medchain-web-export
 
+web-data-azure:  ## Fetch dashboard data produced by the cluster export job
+	./infra/fetch_web_data.sh
+
 web-install:  ## Install frontend dependencies
 	cd $(WEB) && npm install
 

@@ -54,20 +54,77 @@ GOLD_TABLES = [
 DEFAULT_OUT = Path(__file__).resolve().parents[3] / "dashboards" / "web" / "public" / "data"
 
 
-def connect(cfg: Config):
-    """Register every Gold Delta table as a DuckDB view.
+class SparkBackend:
+    """Run the panel SQL through Spark.
 
-    DuckDB reads Delta through delta-rs, so this needs neither Spark nor a running
-    SQL warehouse — it reads exactly the files the pipeline wrote. On Azure the
-    credential chain picks up the same ``az login`` used everywhere else.
+    Needed on Azure. Databricks Runtime 15.4 enables **deletion vectors** on new
+    Delta tables by default, and neither delta-rs nor DuckDB's delta extension can
+    read a table with that reader feature — the read fails with "the table has set
+    these reader features: {'deletionVectors'}". Spark reads them natively.
+
+    The SQL is identical to the DuckDB path. Only table registration differs, which
+    is the point: one set of queries, so the two backends cannot drift apart and
+    report different numbers.
     """
+
+    def __init__(self, spark, cfg: Config):
+        self.spark = spark
+        registered = 0
+        for table in GOLD_TABLES:
+            path = cfg.table_path("gold", table)
+            try:
+                spark.read.format("delta").load(path).createOrReplaceTempView(table)
+                registered += 1
+            except Exception as exc:  # noqa: BLE001 - a missing table is reported, not fatal
+                log.warning("  gold.%s unavailable (%s)", table, type(exc).__name__)
+        if registered == 0:
+            raise RuntimeError(f"No Gold tables found under {cfg.path('gold')}")
+        log.info("  registered %d/%d Gold tables (spark)", registered, len(GOLD_TABLES))
+
+    def execute(self, sql: str):
+        return self.spark.sql(sql)
+
+    def close(self) -> None:
+        """The caller owns the SparkSession — on Databricks it is the notebook's."""
+
+
+class DuckDBBackend:
+    """Run the panel SQL through DuckDB + delta-rs.
+
+    The fast local path: no JVM, no cluster, starts in under a second. Reads exactly
+    the files the pipeline wrote.
+    """
+
+    def __init__(self, con):
+        self.con = con
+
+    def execute(self, sql: str):
+        return self.con.execute(sql)
+
+    def close(self) -> None:
+        self.con.close()
+
+
+def connect(cfg: Config, spark=None):
+    """Pick a backend for reading Gold.
+
+    ``spark`` is supplied when running inside Databricks; otherwise DuckDB is used.
+    On Azure without a SparkSession this will fail on deletion vectors — run the
+    export as a cluster task instead (notebooks/40_web_export.py).
+    """
+    if spark is not None:
+        return SparkBackend(spark, cfg)
+
     import duckdb
 
     con = duckdb.connect(":memory:")
     con.execute("INSTALL delta; LOAD delta;")
     if cfg.is_azure:
         con.execute("INSTALL azure; LOAD azure;")
-        con.execute("CREATE SECRET (TYPE azure, PROVIDER credential_chain);")
+        # `credential_chain` alone starts with the VM metadata endpoint, which is
+        # unreachable off-VM and takes ~16s to time out. Naming the CLI provider
+        # reuses the `az login` already in use everywhere else in this project.
+        con.execute("CREATE SECRET (TYPE azure, PROVIDER credential_chain, CHAIN 'cli');")
 
     registered: list[str] = []
     for table in GOLD_TABLES:
@@ -81,8 +138,8 @@ def connect(cfg: Config):
         raise RuntimeError(
             f"No Gold tables found under {cfg.path('gold')}. Build them with `make run-local`."
         )
-    log.info("  registered %d/%d Gold tables", len(registered), len(GOLD_TABLES))
-    return con
+    log.info("  registered %d/%d Gold tables (duckdb)", len(registered), len(GOLD_TABLES))
+    return DuckDBBackend(con)
 
 
 def _clean(value: Any) -> Any:
@@ -98,7 +155,9 @@ def _clean(value: Any) -> Any:
         return value.isoformat()
     if isinstance(value, float):
         return None if (math.isnan(value) or math.isinf(value)) else round(value, 6)
-    if isinstance(value, (int, str, bool)):
+    if isinstance(value, bool):  # bool before int — bool is a subclass of int
+        return value
+    if isinstance(value, (int, str)):
         return value
     from decimal import Decimal
 
@@ -108,10 +167,13 @@ def _clean(value: Any) -> Any:
 
 
 def rows(con, sql: str) -> list[dict[str, Any]]:
-    """Run a query and return JSON-safe row dicts."""
-    cur = con.execute(sql)
-    columns = [d[0] for d in cur.description]
-    return [{c: _clean(v) for c, v in zip(columns, record)} for record in cur.fetchall()]
+    """Run a query and return JSON-safe row dicts, whichever backend is in use."""
+    result = con.execute(sql)
+    if hasattr(result, "collect"):  # Spark DataFrame
+        columns = result.columns
+        return [{c: _clean(record[c]) for c in columns} for record in result.collect()]
+    columns = [d[0] for d in result.description]
+    return [{c: _clean(v) for c, v in zip(columns, record)} for record in result.fetchall()]
 
 
 def one(con, sql: str) -> dict[str, Any]:
@@ -138,8 +200,8 @@ def headline(con) -> dict[str, Any]:
           COUNT(*)                                                    AS visits,
           COUNT(DISTINCT mpi_id)                                      AS patients,
           SUM(CASE WHEN is_inpatient THEN 1 ELSE 0 END)               AS inpatient_visits,
-          AVG(CASE WHEN is_inpatient THEN readmit_30d_network::INT END)       AS rate_network,
-          AVG(CASE WHEN is_inpatient THEN readmit_30d_same_hospital::INT END) AS rate_hospital,
+          AVG(CASE WHEN is_inpatient THEN CAST(readmit_30d_network AS INT) END)       AS rate_network,
+          AVG(CASE WHEN is_inpatient THEN CAST(readmit_30d_same_hospital AS INT) END) AS rate_hospital,
           SUM(CASE WHEN readmit_cross_hospital_only THEN 1 ELSE 0 END) AS hidden_readmissions
         FROM fact_patient_visit
     """,
@@ -181,7 +243,7 @@ def headline(con) -> dict[str, Any]:
           SUM(room_rent_excess)   AS room_excess,
           SUM(copay_amount)       AS copay,
           SUM(other_deduction)    AS other_deduction,
-          AVG(is_reconciled::INT) AS reconciled_rate,
+          AVG(CAST(is_reconciled AS INT)) AS reconciled_rate,
           COUNT(*)                AS claims
         FROM fact_billing_reconciliation
     """,
@@ -203,14 +265,14 @@ def clinical(con) -> dict[str, Any]:
             """
             SELECT h.hospital_name, h.city,
                    COUNT(*)                                          AS discharges,
-                   AVG(v.readmit_30d_same_hospital::INT) * 100        AS rate_hospital,
-                   AVG(v.readmit_30d_network::INT) * 100              AS rate_network,
-                   SUM(v.readmit_cross_hospital_only::INT)            AS hidden
+                   AVG(CAST(v.readmit_30d_same_hospital AS INT)) * 100        AS rate_hospital,
+                   AVG(CAST(v.readmit_30d_network AS INT)) * 100              AS rate_network,
+                   SUM(CAST(v.readmit_cross_hospital_only AS INT))            AS hidden
             FROM fact_patient_visit v
             JOIN dim_hospital h ON v.hospital_sk = h.hospital_sk
             WHERE v.is_inpatient
             GROUP BY 1, 2
-            ORDER BY (AVG(v.readmit_30d_network::INT) - AVG(v.readmit_30d_same_hospital::INT)) DESC
+            ORDER BY (AVG(CAST(v.readmit_30d_network AS INT)) - AVG(CAST(v.readmit_30d_same_hospital AS INT))) DESC
         """,
         ),
         # Two series on one time axis, emitted separately so the frontend renders two
@@ -220,8 +282,8 @@ def clinical(con) -> dict[str, Any]:
             """
             SELECT d.month_start                                  AS month,
                    COUNT(*)                                       AS visits,
-                   SUM(v.is_inpatient::INT)                       AS inpatient,
-                   AVG(CASE WHEN v.is_inpatient THEN v.readmit_30d_network::INT END) * 100
+                   SUM(CAST(v.is_inpatient AS INT))                       AS inpatient,
+                   AVG(CASE WHEN v.is_inpatient THEN CAST(v.readmit_30d_network AS INT) END) * 100
                                                                   AS readmission_pct
             FROM fact_patient_visit v
             JOIN dim_date d ON v.admission_date_sk = d.date_sk
@@ -241,7 +303,7 @@ def clinical(con) -> dict[str, Any]:
             SELECT p.procedure_name, p.specialty,
                    COUNT(*)                       AS episodes,
                    AVG(v.length_of_stay)          AS avg_los,
-                   AVG(v.readmit_30d_network::INT) * 100 AS readmission_pct
+                   AVG(CAST(v.readmit_30d_network AS INT)) * 100 AS readmission_pct
             FROM fact_patient_visit v
             JOIN dim_procedure p ON v.procedure_sk = p.procedure_sk
             WHERE v.is_inpatient
@@ -317,7 +379,7 @@ def operational(con) -> dict[str, Any]:
             SELECT department_at_visit AS department,
                    COUNT(*)                     AS consultations,
                    COUNT(DISTINCT doctor_id)    AS doctors,
-                   COUNT(*)::DOUBLE / NULLIF(COUNT(DISTINCT doctor_id), 0) AS per_doctor
+                   CAST(COUNT(*) AS DOUBLE) / NULLIF(COUNT(DISTINCT doctor_id), 0) AS per_doctor
             FROM fact_patient_visit
             WHERE department_at_visit IS NOT NULL
             GROUP BY 1 ORDER BY per_doctor DESC
@@ -418,13 +480,13 @@ def quality(con) -> dict[str, Any]:
             con,
             f"""
             SELECT COUNT(*)                                                   AS total,
-                   SUM(passed::INT)                                           AS passed,
+                   SUM(CAST(passed AS INT))                                           AS passed,
                    SUM(CASE WHEN NOT passed AND severity = 'blocking' THEN 1 ELSE 0 END) AS blocking_failures,
                    SUM(CASE WHEN NOT passed AND severity <> 'blocking' THEN 1 ELSE 0 END) AS warnings,
                    -- Cast to text in SQL. Returning a timestamptz makes DuckDB reach
                    -- for pytz to localise it, which is a dependency this export does
                    -- not otherwise need, and the frontend wants a string regardless.
-                   MAX(run_ts)::VARCHAR                                       AS run_ts
+                   CAST(MAX(run_ts) AS STRING)                                       AS run_ts
             FROM dq_scorecard WHERE run_ts = {latest}
         """,
         ),
@@ -473,10 +535,10 @@ PANELS = {
 }
 
 
-def export(cfg: Config, out_dir: Path) -> dict[str, int]:
+def export(cfg: Config, out_dir: Path, spark=None) -> dict[str, int]:
     """Run every panel and write one JSON file each."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    con = connect(cfg)
+    con = connect(cfg, spark)
     sizes: dict[str, int] = {}
     try:
         for name, fn in PANELS.items():
