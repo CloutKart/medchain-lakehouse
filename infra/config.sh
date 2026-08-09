@@ -28,7 +28,13 @@ export ACCESS_CONNECTOR="${ACCESS_CONNECTOR:-ac-${PROJECT}-${ENVIRONMENT}}"
 export KEY_VAULT="${KEY_VAULT:-kv-${PROJECT}-${ENVIRONMENT}}"
 export CATALOG_NAME="${CATALOG_NAME:-medchain}"
 
-export CONTAINERS=(landing bronze silver gold control quarantine checkpoints)
+# The seven data-layer containers, plus `managed`. Every table this project creates
+# is EXTERNAL — registered over an explicit abfss:// path — but a Unity Catalog
+# catalog still requires a managed-table storage root. Giving it a dedicated
+# container keeps anything accidentally created as a managed table out of the data
+# layers, where it would be indistinguishable from pipeline output.
+export CONTAINERS=(landing bronze silver gold control quarantine checkpoints managed)
+export MANAGED_CONTAINER="${MANAGED_CONTAINER:-managed}"
 
 # ---------------------------------------------------------------- cost control
 # Azure for Students is a fixed grant with no overage: when it is gone, the
