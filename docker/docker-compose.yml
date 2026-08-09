@@ -1,0 +1,29 @@
+# Convenience wrapper around Dockerfile.dev.
+#
+#   docker compose -f docker/docker-compose.yml run --rm dev make run-local
+#   docker compose -f docker/docker-compose.yml up dashboard
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      # Bind-mount the repo so edits are live, but keep data/ and the Ivy cache in
+      # named volumes — 600 MB of generated Delta files through a bind mount is slow.
+      - ..:/work
+      - medchain-data:/work/data
+      - ivy-cache:/root/.ivy2
+    environment:
+      MEDCHAIN_ENV: local
+    working_dir: /work
+
+  dashboard:
+    extends: dev
+    command: uv run streamlit run dashboards/streamlit_app.py --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+
+volumes:
+  medchain-data:
+  ivy-cache:

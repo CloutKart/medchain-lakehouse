@@ -1,0 +1,34 @@
+# Generated data — reproducible from `make gen SEED=42`, never committed.
+data/
+!data/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+*.crc
+
+# Azure / secrets — nothing credential-bearing belongs in this repo.
+.env
+*.pem
+*.publishsettings
+infra/.azure_state
+azure_config.sh
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

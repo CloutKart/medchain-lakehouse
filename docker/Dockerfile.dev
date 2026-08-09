@@ -1,0 +1,38 @@
+# Deterministic development image: Python 3.11 + Temurin JDK 17 + Spark 3.5.
+#
+# `make setup` installs a project-local JDK 17 and usually that is enough. This image
+# exists for the case where coexisting with a system JDK 25/26 becomes tiresome, and
+# for reproducing a CI failure exactly.
+#
+#   docker build -f docker/Dockerfile.dev -t medchain-dev .
+#   docker run --rm -it -v "$PWD:/work" medchain-dev make run-local
+
+FROM eclipse-temurin:17-jdk-jammy
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    MEDCHAIN_ENV=local
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common curl ca-certificates make git \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-venv python3.11-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /work
+
+# Dependencies are installed from the manifest alone so this layer caches across
+# source edits.
+COPY pyproject.toml ./
+RUN uv venv --python 3.11 && uv pip install -e '.[generate,dashboard,dev]' || true
+
+COPY . .
+RUN uv pip install -e '.[generate,dashboard,dev]'
+
+# Warm the Delta jar into the image so the first run is not an Ivy download.
+RUN uv run python -m medchain.doctor || true
+
+CMD ["make", "run-local"]

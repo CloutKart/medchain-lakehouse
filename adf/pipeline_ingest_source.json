@@ -1,0 +1,100 @@
+{
+  "name": "pl_ingest_source",
+  "properties": {
+    "description": "Copy one source system's export files from the landing container into the Bronze zone, partitioned by source and ingest date. Parameterised so all seven sources share a single implementation — adding an eighth source is a config change, not a new pipeline.",
+    "parameters": {
+      "source_name": { "type": "String" },
+      "file_pattern": { "type": "String", "defaultValue": "*" },
+      "format": { "type": "String", "defaultValue": "csv" },
+      "ingest_date": { "type": "String" }
+    },
+    "activities": [
+      {
+        "name": "ListLandingFiles",
+        "type": "GetMetadata",
+        "policy": { "timeout": "0.00:10:00", "retry": 2, "retryIntervalInSeconds": 30 },
+        "typeProperties": {
+          "dataset": {
+            "referenceName": "ds_landing_folder",
+            "type": "DatasetReference",
+            "parameters": { "source_name": "@pipeline().parameters.source_name" }
+          },
+          "fieldList": ["childItems", "exists"],
+          "storeSettings": { "type": "AzureBlobFSReadSettings", "enablePartitionDiscovery": false },
+          "formatSettings": { "type": "BinaryReadSettings" }
+        }
+      },
+      {
+        "name": "FailIfSourceMissing",
+        "type": "IfCondition",
+        "dependsOn": [{ "activity": "ListLandingFiles", "dependencyConditions": ["Succeeded"] }],
+        "typeProperties": {
+          "expression": {
+            "value": "@not(activity('ListLandingFiles').output.exists)",
+            "type": "Expression"
+          },
+          "ifTrueActivities": [
+            {
+              "name": "RaiseMissingSource",
+              "type": "Fail",
+              "typeProperties": {
+                "message": {
+                  "value": "@concat('No landing folder for source ', pipeline().parameters.source_name, '. The upstream export did not arrive.')",
+                  "type": "Expression"
+                },
+                "errorCode": "SourceMissing"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "CopyToBronze",
+        "type": "Copy",
+        "dependsOn": [{ "activity": "FailIfSourceMissing", "dependencyConditions": ["Succeeded"] }],
+        "policy": {
+          "timeout": "0.02:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "BinarySource",
+            "storeSettings": {
+              "type": "AzureBlobFSReadSettings",
+              "recursive": true,
+              "wildcardFileName": { "value": "@pipeline().parameters.file_pattern", "type": "Expression" }
+            },
+            "formatSettings": { "type": "BinaryReadSettings" }
+          },
+          "sink": {
+            "type": "BinarySink",
+            "storeSettings": { "type": "AzureBlobFSWriteSettings", "copyBehavior": "PreserveHierarchy" }
+          },
+          "enableStaging": false,
+          "validateDataConsistency": true
+        },
+        "inputs": [
+          {
+            "referenceName": "ds_landing_binary",
+            "type": "DatasetReference",
+            "parameters": { "source_name": "@pipeline().parameters.source_name" }
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_bronze_binary",
+            "type": "DatasetReference",
+            "parameters": {
+              "source_name": "@pipeline().parameters.source_name",
+              "ingest_date": "@pipeline().parameters.ingest_date"
+            }
+          }
+        ]
+      }
+    ],
+    "annotations": ["medchain", "bronze", "ingestion"],
+    "folder": { "name": "medchain" }
+  }
+}

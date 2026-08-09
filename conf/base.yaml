@@ -1,0 +1,77 @@
+# Settings shared by every environment. Environment files (local.yaml / azure.yaml)
+# are merged on top of this, so anything here can be overridden per environment.
+
+project: medchain
+
+# Simulation window. The generator produces events across this range and dim_date
+# is built to cover it with headroom on both sides.
+window:
+  start: "2022-04-01"          # start of Indian FY2022-23
+  end: "2025-03-31"            # end of Indian FY2024-25
+  date_dim_start: "2022-01-01"
+  date_dim_end: "2027-03-31"
+
+# Volume at scale=1.0. The generator multiplies these by --scale.
+volume:
+  hospitals: 8
+  doctors: 350
+  people: 180000               # distinct *real* humans, before duplicate registrations
+  visits: 600000               # ~200k/year across 3 years, per the spec
+  procedures: 400
+
+# Defect injection rates. These are asserted by the generator's own tests, so the
+# platform always has a known amount of each problem to solve.
+defects:
+  duplicate_person_rate: 0.22  # share of people re-registered under a new patient_id
+  doctor_reassign_rate: 0.15   # per year
+  unclosed_stay_rate: 0.02     # bed stays with no check-out event
+  missing_icd10_rate: 0.08     # spec says ~8%
+
+# Master Patient Index tuning.
+mpi:
+  auto_link_threshold: 0.90
+  quarantine_threshold: 0.75
+  weights:
+    name: 0.40
+    dob: 0.30
+    phone: 0.20
+    city: 0.10
+
+# Claim lifecycle state machine. Transitions not present here are recorded as
+# violations rather than dropped.
+claims:
+  states:
+    - Submitted
+    - Under Review
+    - Partially Approved
+    - Approved
+    - Rejected
+    - Settled
+  terminal_states: [Settled, Rejected]
+  legal_transitions:
+    Submitted: [Under Review, Rejected]
+    Under Review: [Partially Approved, Approved, Rejected]
+    Partially Approved: [Settled, Rejected]
+    Approved: [Settled]
+    Rejected: []
+    Settled: []
+
+# Bill <-> claim linkage tolerances.
+linkage:
+  admission_date_tolerance_days: 2
+  amount_tolerance_pct: 0.02
+
+# Clinical metric definitions.
+clinical:
+  readmission_window_days: 30
+
+spark:
+  # Applied to every SparkSession we build, local or cluster.
+  conf:
+    spark.sql.session.timeZone: "Asia/Kolkata"
+    spark.databricks.delta.schema.autoMerge.enabled: "false"
+    # Deliberately NOT setting spark.sql.sources.partitionOverwriteMode=dynamic.
+    # Scoped overwrites in this project use Delta's `replaceWhere`, which states the
+    # affected range explicitly instead of inferring it from whatever partitions the
+    # DataFrame happens to contain. Enabling both is redundant, and Delta rejects
+    # dynamic partition overwrite combined with `overwriteSchema`.

@@ -1,0 +1,66 @@
+{
+  "_comment": "Schedule triggers. Cadence mirrors how each source system actually exports: the HIS and finance systems drop files nightly, while the insurer portal and HR roster are pulled weekly. Running the weekly sources daily would produce six identical no-op batches a week and burn cluster time for nothing.",
+
+  "tr_daily_0200_ist": {
+    "name": "tr_daily_0200_ist",
+    "properties": {
+      "type": "ScheduleTrigger",
+      "description": "Nightly load for HIS, finance and bed sources",
+      "typeProperties": {
+        "recurrence": {
+          "frequency": "Day",
+          "interval": 1,
+          "startTime": "2025-04-01T02:00:00",
+          "timeZone": "India Standard Time",
+          "schedule": { "hours": [2], "minutes": [0] }
+        }
+      },
+      "pipelines": [
+        {
+          "pipelineReference": { "referenceName": "pl_master", "type": "PipelineReference" },
+          "parameters": {
+            "ingest_date": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')",
+            "sources": [
+              { "name": "patient_registrations", "pattern": "*.csv", "format": "csv" },
+              { "name": "billing_transactions", "pattern": "*.csv", "format": "csv" },
+              { "name": "bed_occupancy_log", "pattern": "*.csv", "format": "csv" },
+              { "name": "claim_line_items", "pattern": "*.csv", "format": "csv" }
+            ]
+          }
+        }
+      ],
+      "annotations": ["medchain"]
+    }
+  },
+
+  "tr_weekly_sunday": {
+    "name": "tr_weekly_sunday",
+    "properties": {
+      "type": "ScheduleTrigger",
+      "description": "Weekly load for the insurer portal and HR roster. The insurer export cadence is why claim reconstruction coverage tops out around 92% — states that begin and end inside one week are never observed.",
+      "typeProperties": {
+        "recurrence": {
+          "frequency": "Week",
+          "interval": 1,
+          "startTime": "2025-04-06T03:00:00",
+          "timeZone": "India Standard Time",
+          "schedule": { "weekDays": ["Sunday"], "hours": [3], "minutes": [0] }
+        }
+      },
+      "pipelines": [
+        {
+          "pipelineReference": { "referenceName": "pl_master", "type": "PipelineReference" },
+          "parameters": {
+            "ingest_date": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')",
+            "sources": [
+              { "name": "insurance_claims", "pattern": "*.csv", "format": "csv" },
+              { "name": "doctor_assignments", "pattern": "*.json", "format": "json" },
+              { "name": "procedure_master", "pattern": "*.csv", "format": "csv" }
+            ]
+          }
+        }
+      ],
+      "annotations": ["medchain"]
+    }
+  }
+}

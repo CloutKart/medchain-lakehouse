@@ -1,0 +1,125 @@
+procedure_name,icd10_code,specialty,procedure_category,base_cost_inr
+Coronary Angiography,I25.10,Cardiology,DIAGNOSTIC,18000
+Coronary Angioplasty with Stent,I25.10,Cardiology,SURGERY,225000
+Coronary Artery Bypass Grafting,I25.10,Cardiology,SURGERY,385000
+Acute Myocardial Infarction Management,I21.9,Cardiology,EMERGENCY,165000
+Echocardiography,I51.9,Cardiology,DIAGNOSTIC,4500
+Permanent Pacemaker Implantation,I44.2,Cardiology,SURGERY,275000
+Cardiac Electrophysiology Study,I49.9,Cardiology,DIAGNOSTIC,95000
+Congestive Heart Failure Management,I50.9,Cardiology,THERAPY,72000
+Hypertension Evaluation,I10,Cardiology,CONSULTATION,1200
+Atrial Fibrillation Ablation,I48.91,Cardiology,SURGERY,310000
+Total Knee Replacement,M17.0,Orthopedics,SURGERY,295000
+Total Hip Replacement,M16.0,Orthopedics,SURGERY,320000
+Arthroscopic Meniscectomy,M23.2,Orthopedics,SURGERY,88000
+Fracture Fixation Femur,S72.001A,Orthopedics,SURGERY,145000
+Fracture Fixation Tibia,S82.101A,Orthopedics,SURGERY,118000
+Spinal Fusion Lumbar,M43.16,Orthopedics,SURGERY,340000
+Lumbar Disc Excision,M51.26,Orthopedics,SURGERY,185000
+Rotator Cuff Repair,M75.100,Orthopedics,SURGERY,132000
+Osteoarthritis Consultation,M19.90,Orthopedics,CONSULTATION,1000
+Carpal Tunnel Release,G56.00,Orthopedics,SURGERY,54000
+Cerebral Infarction Thrombolysis,I63.9,Neurology,EMERGENCY,215000
+Epilepsy Evaluation with EEG,G40.909,Neurology,DIAGNOSTIC,8500
+Migraine Management,G43.909,Neurology,CONSULTATION,1500
+Parkinson Disease Management,G20,Neurology,THERAPY,42000
+Guillain Barre Syndrome Management,G61.0,Neurology,THERAPY,265000
+Craniotomy for Tumour Excision,C71.9,Neurology,SURGERY,425000
+Nerve Conduction Study,G62.9,Neurology,DIAGNOSTIC,6500
+Multiple Sclerosis Infusion Therapy,G35,Neurology,THERAPY,138000
+Subarachnoid Haemorrhage Management,I60.9,Neurology,EMERGENCY,385000
+Chemotherapy Cycle Breast Carcinoma,C50.919,Oncology,THERAPY,95000
+Chemotherapy Cycle Lung Carcinoma,C34.90,Oncology,THERAPY,102000
+Radiotherapy Fraction,C80.1,Oncology,THERAPY,15000
+Mastectomy,C50.919,Oncology,SURGERY,215000
+Colonic Resection for Carcinoma,C18.9,Oncology,SURGERY,295000
+Bone Marrow Biopsy,C95.90,Oncology,DIAGNOSTIC,12000
+PET CT Whole Body,C80.1,Oncology,DIAGNOSTIC,28000
+Palliative Care Admission,Z51.5,Oncology,THERAPY,48000
+Neonatal Jaundice Phototherapy,P59.9,Pediatrics,THERAPY,22000
+Neonatal Sepsis Management,P36.9,Pediatrics,THERAPY,148000
+Bronchiolitis Management,J21.9,Pediatrics,THERAPY,38000
+Paediatric Gastroenteritis Management,A09,Pediatrics,THERAPY,26000
+Routine Immunisation,Z23,Pediatrics,CONSULTATION,800
+Paediatric Growth Assessment,Z00.129,Pediatrics,CONSULTATION,900
+Congenital Heart Disease Evaluation,Q24.9,Pediatrics,DIAGNOSTIC,14000
+Preterm Neonate Intensive Care,P07.30,Pediatrics,THERAPY,325000
+Upper GI Endoscopy,K29.70,Gastroenterology,DIAGNOSTIC,7500
+Colonoscopy,K63.5,Gastroenterology,DIAGNOSTIC,12500
+Laparoscopic Cholecystectomy,K80.20,Gastroenterology,SURGERY,125000
+Acute Pancreatitis Management,K85.90,Gastroenterology,THERAPY,185000
+Liver Cirrhosis Management,K74.60,Gastroenterology,THERAPY,142000
+ERCP with Stenting,K83.1,Gastroenterology,SURGERY,168000
+Peptic Ulcer Disease Management,K27.9,Gastroenterology,THERAPY,32000
+Inflammatory Bowel Disease Consultation,K51.90,Gastroenterology,CONSULTATION,1400
+Haemorrhoidectomy,K64.9,Gastroenterology,SURGERY,62000
+Community Acquired Pneumonia Management,J18.9,Pulmonology,THERAPY,68000
+COPD Exacerbation Management,J44.1,Pulmonology,THERAPY,74000
+Bronchial Asthma Management,J45.909,Pulmonology,THERAPY,28000
+Pulmonary Function Test,J98.4,Pulmonology,DIAGNOSTIC,3500
+Bronchoscopy,J98.09,Pulmonology,DIAGNOSTIC,18500
+Pulmonary Tuberculosis Treatment,A15.0,Pulmonology,THERAPY,45000
+Pleural Effusion Drainage,J90,Pulmonology,SURGERY,52000
+Obstructive Sleep Apnoea Study,G47.33,Pulmonology,DIAGNOSTIC,11000
+Haemodialysis Session,N18.6,Nephrology,THERAPY,4200
+Chronic Kidney Disease Management,N18.9,Nephrology,THERAPY,58000
+Renal Biopsy,N28.89,Nephrology,DIAGNOSTIC,24000
+Arteriovenous Fistula Creation,N18.6,Nephrology,SURGERY,78000
+Acute Kidney Injury Management,N17.9,Nephrology,EMERGENCY,132000
+Renal Transplant,Z94.0,Nephrology,SURGERY,895000
+Nephrotic Syndrome Management,N04.9,Nephrology,THERAPY,86000
+Normal Vaginal Delivery,O80,Obstetrics and Gynaecology,SURGERY,55000
+Lower Segment Caesarean Section,O82,Obstetrics and Gynaecology,SURGERY,118000
+Total Abdominal Hysterectomy,N85.9,Obstetrics and Gynaecology,SURGERY,165000
+Antenatal Care Visit,Z34.90,Obstetrics and Gynaecology,CONSULTATION,900
+Laparoscopic Ovarian Cystectomy,N83.209,Obstetrics and Gynaecology,SURGERY,98000
+Dilatation and Curettage,N85.00,Obstetrics and Gynaecology,SURGERY,38000
+Preeclampsia Management,O14.90,Obstetrics and Gynaecology,EMERGENCY,145000
+Infertility Evaluation,N97.9,Obstetrics and Gynaecology,DIAGNOSTIC,16000
+Functional Endoscopic Sinus Surgery,J32.9,ENT,SURGERY,92000
+Tonsillectomy,J35.01,ENT,SURGERY,58000
+Tympanoplasty,H66.90,ENT,SURGERY,74000
+Pure Tone Audiometry,H91.90,ENT,DIAGNOSTIC,2200
+Septoplasty,J34.2,ENT,SURGERY,68000
+Chronic Otitis Media Consultation,H66.3X9,ENT,CONSULTATION,1000
+Phacoemulsification with IOL,H25.9,Ophthalmology,SURGERY,48000
+Vitrectomy,H43.9,Ophthalmology,SURGERY,125000
+Diabetic Retinopathy Laser,E11.319,Ophthalmology,THERAPY,18000
+Glaucoma Trabeculectomy,H40.9,Ophthalmology,SURGERY,72000
+Refraction and Vision Assessment,H52.4,Ophthalmology,CONSULTATION,700
+Intravitreal Anti VEGF Injection,H35.32,Ophthalmology,THERAPY,32000
+Psoriasis Management,L40.9,Dermatology,THERAPY,18000
+Atopic Dermatitis Consultation,L20.9,Dermatology,CONSULTATION,900
+Cellulitis Management,L03.90,Dermatology,THERAPY,34000
+Skin Biopsy,L98.9,Dermatology,DIAGNOSTIC,4500
+Transurethral Resection of Prostate,N40.1,Urology,SURGERY,142000
+Percutaneous Nephrolithotomy,N20.0,Urology,SURGERY,158000
+Ureteroscopy with Stone Removal,N20.1,Urology,SURGERY,96000
+Urinary Tract Infection Management,N39.0,Urology,THERAPY,22000
+Cystoscopy,N32.9,Urology,DIAGNOSTIC,14000
+Major Depressive Disorder Management,F33.9,Psychiatry,THERAPY,26000
+Schizophrenia Management,F20.9,Psychiatry,THERAPY,72000
+Anxiety Disorder Consultation,F41.9,Psychiatry,CONSULTATION,1500
+Alcohol Withdrawal Management,F10.239,Psychiatry,THERAPY,48000
+Type 2 Diabetes Mellitus Management,E11.9,General Medicine,THERAPY,24000
+Diabetic Ketoacidosis Management,E11.10,General Medicine,EMERGENCY,118000
+Dengue Fever Management,A90,General Medicine,THERAPY,42000
+Enteric Fever Management,A01.00,General Medicine,THERAPY,36000
+Malaria Management,B54,General Medicine,THERAPY,28000
+Anaemia Evaluation,D64.9,General Medicine,DIAGNOSTIC,5500
+Hypothyroidism Management,E03.9,General Medicine,CONSULTATION,1100
+General Health Checkup,Z00.00,General Medicine,CONSULTATION,3500
+Sepsis Management,A41.9,General Medicine,EMERGENCY,285000
+COVID 19 Pneumonia Management,U07.1,General Medicine,THERAPY,155000
+Open Appendicectomy,K35.80,General Surgery,SURGERY,72000
+Laparoscopic Appendicectomy,K35.80,General Surgery,SURGERY,95000
+Inguinal Hernia Repair,K40.90,General Surgery,SURGERY,88000
+Umbilical Hernia Repair,K42.9,General Surgery,SURGERY,74000
+Thyroidectomy,E04.9,General Surgery,SURGERY,148000
+Breast Lump Excision,N63.0,General Surgery,SURGERY,52000
+Wound Debridement,T81.4XXA,General Surgery,SURGERY,32000
+Road Traffic Accident Polytrauma,T07,Emergency,EMERGENCY,325000
+Acute Poisoning Management,T65.91XA,Emergency,EMERGENCY,88000
+Anaphylaxis Management,T78.2XXA,Emergency,EMERGENCY,42000
+Burns Management,T30.0,Emergency,EMERGENCY,195000
+Snake Bite Envenomation,T63.001A,Emergency,EMERGENCY,112000

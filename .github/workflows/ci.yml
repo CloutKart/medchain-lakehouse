@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Nightly full run, including the integration suite that is too slow for PRs.
+    - cron: "0 2 * * *"
+
+env:
+  MEDCHAIN_ENV: local
+
+jobs:
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv venv --python 3.11
+          uv pip install -e '.[generate,dashboard,dev]'
+
+      - run: uv run ruff check src tests dashboards
+      - run: uv run ruff format --check src tests dashboards
+      - run: uv run mypy src
+
+  test:
+    name: Unit and Spark tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Spark 3.5 supports JDK 8/11/17 only. Pinning 17 here matches Databricks
+      # Runtime 15.4 LTS, so CI exercises the same JVM the cluster runs.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv venv --python 3.11
+          uv pip install -e '.[generate,dashboard,dev]'
+
+      - name: Verify the toolchain can start Spark and Delta
+        run: uv run python -m medchain.doctor
+
+      - name: Unit tests
+        run: uv run pytest tests/unit -q --junitxml=junit-unit.xml
+
+      - name: Spark tests
+        run: uv run pytest tests/spark -q --junitxml=junit-spark.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: junit-*.xml
+
+  integration:
+    name: End-to-end integration
+    runs-on: ubuntu-latest
+    # Runs the whole generator -> Bronze -> Silver -> Gold -> quality chain, which
+    # takes ~10 minutes. Too slow for every PR, so it runs nightly, on demand, and
+    # on any PR labelled `full-test`.
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'full-test')
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv venv --python 3.11
+          uv pip install -e '.[generate,dashboard,dev]'
+
+      - name: Integration tests
+        run: uv run pytest tests/integration -q --junitxml=junit-integration.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-results
+          path: junit-integration.xml
+
+  build:
+    name: Build wheel
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      # The wheel is what gets installed on the Databricks cluster, so building it
+      # in CI proves the artefact that runs in production is buildable from a clean
+      # checkout.
+      - name: Build
+        run: uv build --wheel
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medchain-wheel
+          path: dist/*.whl

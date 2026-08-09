@@ -1,0 +1,106 @@
+# Indian public holidays feeding dim_date.is_public_holiday.
+#
+# Fixed-date national holidays are exact. Lunar-calendar festivals (Holi, Diwali,
+# Eid, Dussehra, ...) shift each year and are listed here to the commonly observed
+# date. For a production deployment these should be replaced with the official
+# central/state gazette list — hospital admission and discharge volumes track
+# holidays closely, so an approximate date shifts the seasonality analysis by a day.
+#
+# holiday_type: NATIONAL (gazetted, all states) | FESTIVAL (widely observed)
+holiday_date,holiday_name,holiday_type
+2022-01-26,Republic Day,NATIONAL
+2022-03-18,Holi,FESTIVAL
+2022-04-14,Ambedkar Jayanti,NATIONAL
+2022-04-14,Mahavir Jayanti,FESTIVAL
+2022-04-15,Good Friday,FESTIVAL
+2022-05-03,Eid al-Fitr,FESTIVAL
+2022-05-16,Buddha Purnima,FESTIVAL
+2022-07-10,Eid al-Adha,FESTIVAL
+2022-08-09,Muharram,FESTIVAL
+2022-08-15,Independence Day,NATIONAL
+2022-08-19,Janmashtami,FESTIVAL
+2022-10-02,Gandhi Jayanti,NATIONAL
+2022-10-05,Dussehra,FESTIVAL
+2022-10-24,Diwali,FESTIVAL
+2022-11-08,Guru Nanak Jayanti,FESTIVAL
+2022-12-25,Christmas,NATIONAL
+2023-01-26,Republic Day,NATIONAL
+2023-03-08,Holi,FESTIVAL
+2023-04-04,Mahavir Jayanti,FESTIVAL
+2023-04-07,Good Friday,FESTIVAL
+2023-04-14,Ambedkar Jayanti,NATIONAL
+2023-04-22,Eid al-Fitr,FESTIVAL
+2023-05-05,Buddha Purnima,FESTIVAL
+2023-06-29,Eid al-Adha,FESTIVAL
+2023-07-29,Muharram,FESTIVAL
+2023-08-15,Independence Day,NATIONAL
+2023-09-07,Janmashtami,FESTIVAL
+2023-10-02,Gandhi Jayanti,NATIONAL
+2023-10-24,Dussehra,FESTIVAL
+2023-11-12,Diwali,FESTIVAL
+2023-11-27,Guru Nanak Jayanti,FESTIVAL
+2023-12-25,Christmas,NATIONAL
+2024-01-26,Republic Day,NATIONAL
+2024-03-25,Holi,FESTIVAL
+2024-03-29,Good Friday,FESTIVAL
+2024-04-11,Eid al-Fitr,FESTIVAL
+2024-04-14,Ambedkar Jayanti,NATIONAL
+2024-04-21,Mahavir Jayanti,FESTIVAL
+2024-05-23,Buddha Purnima,FESTIVAL
+2024-06-17,Eid al-Adha,FESTIVAL
+2024-07-17,Muharram,FESTIVAL
+2024-08-15,Independence Day,NATIONAL
+2024-08-26,Janmashtami,FESTIVAL
+2024-10-02,Gandhi Jayanti,NATIONAL
+2024-10-12,Dussehra,FESTIVAL
+2024-11-01,Diwali,FESTIVAL
+2024-11-15,Guru Nanak Jayanti,FESTIVAL
+2024-12-25,Christmas,NATIONAL
+2025-01-26,Republic Day,NATIONAL
+2025-03-14,Holi,FESTIVAL
+2025-03-31,Eid al-Fitr,FESTIVAL
+2025-04-10,Mahavir Jayanti,FESTIVAL
+2025-04-14,Ambedkar Jayanti,NATIONAL
+2025-04-18,Good Friday,FESTIVAL
+2025-05-12,Buddha Purnima,FESTIVAL
+2025-06-07,Eid al-Adha,FESTIVAL
+2025-07-06,Muharram,FESTIVAL
+2025-08-15,Independence Day,NATIONAL
+2025-08-16,Janmashtami,FESTIVAL
+2025-10-02,Gandhi Jayanti,NATIONAL
+2025-10-02,Dussehra,FESTIVAL
+2025-10-20,Diwali,FESTIVAL
+2025-11-05,Guru Nanak Jayanti,FESTIVAL
+2025-12-25,Christmas,NATIONAL
+2026-01-26,Republic Day,NATIONAL
+2026-03-04,Holi,FESTIVAL
+2026-03-20,Eid al-Fitr,FESTIVAL
+2026-03-31,Mahavir Jayanti,FESTIVAL
+2026-04-03,Good Friday,FESTIVAL
+2026-04-14,Ambedkar Jayanti,NATIONAL
+2026-05-01,Buddha Purnima,FESTIVAL
+2026-05-27,Eid al-Adha,FESTIVAL
+2026-06-26,Muharram,FESTIVAL
+2026-08-15,Independence Day,NATIONAL
+2026-09-04,Janmashtami,FESTIVAL
+2026-10-02,Gandhi Jayanti,NATIONAL
+2026-10-20,Dussehra,FESTIVAL
+2026-11-08,Diwali,FESTIVAL
+2026-11-24,Guru Nanak Jayanti,FESTIVAL
+2026-12-25,Christmas,NATIONAL
+2027-01-26,Republic Day,NATIONAL
+2027-03-10,Eid al-Fitr,FESTIVAL
+2027-03-22,Holi,FESTIVAL
+2027-03-26,Good Friday,FESTIVAL
+2027-04-14,Ambedkar Jayanti,NATIONAL
+2027-04-18,Mahavir Jayanti,FESTIVAL
+2027-05-17,Eid al-Adha,FESTIVAL
+2027-05-20,Buddha Purnima,FESTIVAL
+2027-06-16,Muharram,FESTIVAL
+2027-08-15,Independence Day,NATIONAL
+2027-08-25,Janmashtami,FESTIVAL
+2027-10-02,Gandhi Jayanti,NATIONAL
+2027-10-09,Dussehra,FESTIVAL
+2027-10-29,Diwali,FESTIVAL
+2027-11-14,Guru Nanak Jayanti,FESTIVAL
+2027-12-25,Christmas,NATIONAL

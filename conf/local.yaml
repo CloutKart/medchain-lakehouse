@@ -1,0 +1,28 @@
+# Local development. Everything lives under ./data as plain Delta directories.
+# No catalog: tables are addressed by path, exactly as they are on Azure, which is
+# what keeps transformation code identical across environments.
+
+env: local
+
+catalog: null                  # no Unity Catalog locally
+
+root: "./data"
+
+paths:
+  landing:     "${root}/landing"
+  bronze:      "${root}/bronze"
+  silver:      "${root}/silver"
+  gold:        "${root}/gold"
+  control:     "${root}/control"
+  quarantine:  "${root}/quarantine"
+  checkpoints: "${root}/checkpoints"
+  truth:       "${root}/_truth"
+
+spark:
+  app_name: "medchain-local"
+  master: "local[*]"
+  conf:
+    spark.sql.shuffle.partitions: "8"
+    spark.driver.memory: "4g"
+    spark.sql.warehouse.dir: "./data/_warehouse"
+    spark.databricks.delta.retentionDurationCheck.enabled: "false"

@@ -1,0 +1,173 @@
+# The data contract for every source system export.
+#
+# Bronze ingestion reads these schemas explicitly and never uses inferSchema —
+# inference is non-deterministic across batches (a column that is all-integer one
+# day and has one null the next changes type), which would silently corrupt the
+# archive. Everything lands as declared here; type coercion happens in Silver.
+#
+# `scd` records the spec's classification for each source and drives which Silver
+# module consumes it. `cadence` drives the ADF trigger the source is attached to.
+
+sources:
+
+  patient_registrations:
+    system: HIS
+    file: patient_registrations.csv
+    format: csv
+    cadence: daily
+    scd: type2
+    business_key: [patient_id, hospital_id]
+    challenge: "Duplicate patients across hospitals — requires MPI construction"
+    columns:
+      patient_id:       {type: string,  nullable: false}
+      hospital_id:      {type: string,  nullable: false}
+      first_name:       {type: string,  nullable: true}
+      last_name:        {type: string,  nullable: true}
+      gender:           {type: string,  nullable: true}
+      dob:              {type: string,  nullable: true}   # mixed formats on purpose
+      phone:            {type: string,  nullable: true}
+      email:            {type: string,  nullable: true}
+      address_line:     {type: string,  nullable: true}
+      city:             {type: string,  nullable: true}
+      state:            {type: string,  nullable: true}
+      pincode:          {type: string,  nullable: true}
+      blood_group:      {type: string,  nullable: true}
+      registered_date:  {type: string,  nullable: true}
+      updated_date:     {type: string,  nullable: true}
+
+  insurance_claims:
+    system: InsurerPortal
+    file: insurance_claims.csv
+    format: csv
+    cadence: daily
+    scd: append_only_audit
+    business_key: [claim_id]
+    challenge: "Only latest claim state stored — history must be reconstructed"
+    # Note: no visit_id. The insurer portal has no knowledge of the hospital's
+    # internal visit identifier — it knows the patient, the hospital, the dates and
+    # its own claim number. That absence is what makes bill-to-claim linkage a real
+    # matching problem rather than an equi-join, and it mirrors reality: the finance
+    # system and the insurer portal share no key.
+    columns:
+      claim_id:         {type: string,  nullable: false}
+      patient_id:       {type: string,  nullable: true}
+      hospital_id:      {type: string,  nullable: true}
+      insurer_id:       {type: string,  nullable: true}
+      policy_number:    {type: string,  nullable: true}
+      claim_amount:     {type: decimal(18,2), nullable: true}
+      approved_amount:  {type: decimal(18,2), nullable: true}
+      claim_status:     {type: string,  nullable: true}
+      status_date:      {type: string,  nullable: true}
+      submitted_date:   {type: string,  nullable: true}
+      admission_date:   {type: string,  nullable: true}   # insurer knows the stay dates
+      discharge_date:   {type: string,  nullable: true}
+      rejection_reason: {type: string,  nullable: true}
+      hospital_ref_no:  {type: string,  nullable: true}   # partial bill ref, for linkage
+      export_date:      {type: string,  nullable: true}
+
+  claim_line_items:
+    system: InsurerPortal
+    file: claim_line_items.csv
+    format: csv
+    cadence: daily
+    scd: type1
+    business_key: [line_item_id]
+    challenge: "TPA deduction amounts not codified — requires rules engine"
+    columns:
+      line_item_id:     {type: string,  nullable: false}
+      claim_id:         {type: string,  nullable: false}
+      procedure_code:   {type: string,  nullable: true}
+      procedure_name:   {type: string,  nullable: true}
+      item_category:    {type: string,  nullable: true}   # ROOM/PHARMACY/SURGERY/...
+      room_type:        {type: string,  nullable: true}
+      quantity:         {type: int,     nullable: true}
+      unit_price:       {type: decimal(18,2), nullable: true}
+      line_amount:      {type: decimal(18,2), nullable: true}
+
+  billing_transactions:
+    system: FinanceApp
+    file: billing_transactions.csv
+    format: csv
+    cadence: daily
+    scd: type1
+    business_key: [bill_id]
+    challenge: "Different bill ID format from claim ID format"
+    columns:
+      bill_id:          {type: string,  nullable: false}
+      hospital_id:      {type: string,  nullable: true}
+      patient_id:       {type: string,  nullable: true}
+      visit_id:         {type: string,  nullable: true}
+      admission_date:   {type: string,  nullable: true}
+      discharge_date:   {type: string,  nullable: true}
+      gross_amount:     {type: decimal(18,2), nullable: true}
+      discount_amount:  {type: decimal(18,2), nullable: true}
+      tax_amount:       {type: decimal(18,2), nullable: true}
+      net_payable:      {type: decimal(18,2), nullable: true}
+      room_charge:      {type: decimal(18,2), nullable: true}
+      payment_mode:     {type: string,  nullable: true}
+      bill_date:        {type: string,  nullable: true}
+
+  doctor_assignments:
+    system: HRSystem
+    file: doctor_assignments.json
+    format: json
+    cadence: weekly
+    scd: type2
+    business_key: [doctor_id]
+    challenge: "Department reassignments must be tracked historically"
+    columns:
+      doctor_id:        {type: string,  nullable: false}
+      doctor_name:      {type: string,  nullable: true}
+      department:       {type: string,  nullable: true}
+      hospital_id:      {type: string,  nullable: true}
+      specialty:        {type: string,  nullable: true}
+      designation:      {type: string,  nullable: true}
+      qualification:    {type: string,  nullable: true}
+      joining_date:     {type: string,  nullable: true}
+      effective_date:   {type: string,  nullable: true}
+      export_date:      {type: string,  nullable: true}
+
+  bed_occupancy_log:
+    system: HIS
+    file: bed_occupancy_log.csv
+    format: csv
+    cadence: daily
+    scd: append
+    business_key: [event_id]
+    challenge: "Gaps when patient transferred between wards — requires gap-fill"
+    columns:
+      event_id:         {type: string,  nullable: false}
+      visit_id:         {type: string,  nullable: true}
+      patient_id:       {type: string,  nullable: true}
+      hospital_id:      {type: string,  nullable: true}
+      ward_id:          {type: string,  nullable: true}
+      ward_type:        {type: string,  nullable: true}
+      bed_number:       {type: string,  nullable: true}
+      event_type:       {type: string,  nullable: true}   # CHECK_IN/TRANSFER_OUT/TRANSFER_IN/CHECK_OUT
+      event_ts:         {type: string,  nullable: true}
+
+  procedure_master:
+    system: HIS
+    file: procedure_master.csv
+    format: csv
+    cadence: weekly
+    scd: type1
+    business_key: [procedure_code]
+    challenge: "ICD-10 codes missing for ~8% of procedures"
+    columns:
+      procedure_code:      {type: string,  nullable: false}
+      procedure_name:      {type: string,  nullable: true}
+      icd10_code:          {type: string,  nullable: true}   # ~8% null by design
+      specialty:           {type: string,  nullable: true}
+      procedure_category:  {type: string,  nullable: true}
+      base_cost:           {type: decimal(18,2), nullable: true}
+
+# Metadata columns appended to every Bronze table. Bronze is a faithful, replayable
+# archive: nothing is transformed, nothing is dropped, and every row can be traced
+# back to the exact file and batch it arrived in.
+bronze_metadata:
+  - batch_id
+  - ingestion_ts
+  - source_file
+  - source_system
+  - ingest_date

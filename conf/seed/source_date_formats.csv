@@ -1,0 +1,17 @@
+# Each hospital runs its own HIS instance with its own locale settings, so the same
+# date of birth is exported eight different ways across the network.
+#
+# H002 and H004 are the interesting pair: 03/04/1985 means 3 April at H002 and
+# 4 March at H004. The ambiguity is unresolvable from the value alone, which is why
+# Silver parses dates using the *source hospital* rather than guessing per row. Any
+# pipeline that applies one global date format silently corrupts 12% of birth dates
+# and then fails to match those patients in the MPI.
+hospital_id,date_format,phone_format,name_case
+H001,%Y-%m-%d,plain10,title
+H002,%d/%m/%Y,plus91dash,upper
+H003,%d-%b-%Y,leading0,title
+H004,%m/%d/%Y,plain10,upper
+H005,%Y/%m/%d,spaced,title
+H006,%d.%m.%Y,plus91space,title
+H007,%Y-%m-%d,dashed,upper
+H008,%d-%m-%Y,plain10,title

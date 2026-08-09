@@ -1,0 +1,33 @@
+# Azure Databricks + ADLS Gen2. Paths are abfss:// URIs against the containers
+# created by infra/provision.sh. Auth is Unity Catalog (Access Connector managed
+# identity) — no credentials appear in code or config.
+#
+# ${STORAGE_ACCOUNT} is substituted from the environment at load time so this file
+# stays safe to commit.
+
+env: azure
+
+catalog: medchain              # Unity Catalog catalog created by provision.sh
+
+storage_account: "${STORAGE_ACCOUNT}"
+root: "abfss://{container}@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+
+paths:
+  landing:     "abfss://landing@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  bronze:      "abfss://bronze@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  silver:      "abfss://silver@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  gold:        "abfss://gold@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  control:     "abfss://control@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  quarantine:  "abfss://quarantine@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  checkpoints: "abfss://checkpoints@${STORAGE_ACCOUNT}.dfs.core.windows.net"
+  truth:       "abfss://landing@${STORAGE_ACCOUNT}.dfs.core.windows.net/_truth"
+
+spark:
+  app_name: "medchain-azure"
+  master: null                 # provided by the Databricks cluster
+  conf:
+    # Facts are large enough that AQE skew handling matters on the visit/claim joins.
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.skewJoin.enabled: "true"
+    spark.databricks.delta.optimizeWrite.enabled: "true"
+    spark.databricks.delta.autoCompact.enabled: "true"
