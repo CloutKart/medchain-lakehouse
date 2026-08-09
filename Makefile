@@ -74,26 +74,45 @@ run-local:  ## Full pipeline: bronze -> silver -> gold -> quality
 # ---------------------------------------------------------------- dashboard
 WEB := dashboards/web
 
-.PHONY: web-data web-install web-dev web-build web-preview web
-web-data:  ## Export the Gold layer to JSON for the dashboard
+# The build copies public/data into dist, so dist is a snapshot taken at build
+# time. Fetching new data without rebuilding leaves the served page showing the old
+# numbers — which the footer's provenance line will tell you, but the targets below
+# are ordered so it does not arise.
+#
+# web-build deliberately does NOT depend on web-data. It used to, which meant
+# `make web` after `make web-data-azure` quietly re-ran a local export over the top
+# of the Azure data and served that instead. Choosing the data source is the point
+# of these targets, so it is never implied.
+.PHONY: web-data web-data-azure web-install web-dev web-build web-preview web web-azure
+web-data:  ## Export the local Gold layer to JSON (overwrites public/data)
 	$(UV) run medchain-web-export
 
-web-data-azure:  ## Fetch dashboard data produced by the cluster export job
+web-data-azure:  ## Fetch the dashboard data the cluster produced (overwrites public/data)
 	./infra/fetch_web_data.sh
 
 web-install:  ## Install frontend dependencies
 	cd $(WEB) && npm install
 
-web-dev: web-data  ## Dashboard dev server with hot reload (localhost:5173)
+web-dev:  ## Dev server with hot reload, on whatever data is present (localhost:5173)
 	cd $(WEB) && npm run dev
 
-web-build: web-data  ## Production build into dashboards/web/dist
+web-build:  ## Production build into dist, from whatever data is present
 	cd $(WEB) && npm run build
 
 web-preview:  ## Serve the production build (localhost:4173)
 	cd $(WEB) && npm run preview
 
-web: web-build web-preview  ## Build and serve
+# Sub-makes rather than prerequisites: prerequisite order is not guaranteed under
+# `make -j`, and building before the data lands is exactly the bug being avoided.
+web:  ## Local Gold -> build -> serve
+	@$(MAKE) web-data
+	@$(MAKE) web-build
+	@$(MAKE) web-preview
+
+web-azure:  ## Azure Gold -> build -> serve
+	@$(MAKE) web-data-azure
+	@$(MAKE) web-build
+	@$(MAKE) web-preview
 
 .PHONY: questions
 questions:  ## Print the 7 business questions with their current answers

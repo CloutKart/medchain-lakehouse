@@ -192,7 +192,7 @@ make doctor                # verify Spark 3.5 + Delta 3.2 actually work
 make gen SCALE=1.0         # 3 years of synthetic source data (~2 min, 600 MB)
 make run-local             # bronze -> silver -> gold -> quality (~10 min)
 make web-install           # frontend dependencies (once)
-make web                   # export Gold to JSON, build and serve the dashboard
+make web                   # export local Gold to JSON, build and serve the dashboard
 ```
 
 `make test` runs the unit and Spark suites; `make test-integration` runs the full
@@ -212,10 +212,16 @@ behaviour agree.
 ./infra/provision.sh             # ~5 min; SPENDS CREDIT
 make gen SCALE=1.0 && make upload
 make deploy                      # wheel + notebooks + ADF pipelines
+make run-azure                   # bronze -> silver -> gold -> quality -> web export
+make web-azure                   # fetch what the cluster produced, build, serve
 make cost                        # check spend
 make stop                        # terminate clusters
 ./infra/teardown.sh              # delete everything
 ```
+
+`make web` and `make web-azure` differ only in where the numbers come from, and the
+dashboard footer names the source it actually loaded — so a page built from local
+Gold cannot be mistaken for one built from the cluster's.
 
 Cluster time is the entire budget — roughly 150–180 hours of all-purpose compute on a
 $100 student grant. Everything except scaled runs and demos should happen locally,
