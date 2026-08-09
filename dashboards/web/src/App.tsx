@@ -17,6 +17,7 @@ import {
   type Status,
 } from "./components/ui";
 import { count, inr, loadDataset, pct, shortMonth, type Dataset } from "./data";
+import { pickActiveSection } from "./scrollspy";
 
 const NAV: NavItem[] = [
   { id: "overview", label: "Overview", hint: "What the platform found" },
@@ -42,24 +43,46 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  // Scroll spy for the rail. IntersectionObserver rather than a scroll handler so
-  // it costs nothing on a long page.
+  // Scroll spy for the rail.
+  //
+  // This was an IntersectionObserver with `threshold: [0.1, 0.5]` and a rootMargin
+  // that narrowed the observation band to about a tenth of the viewport. That never
+  // fired: thresholds are a fraction of *the target element*, and these sections run
+  // to several thousand pixels, so a section can put at most ~3% of itself inside a
+  // band that thin. The ratio never reached 0.1 and the callback never ran, leaving
+  // the rail stuck on whatever loaded first.
+  //
+  // Reading positions directly sidesteps the whole problem, and is correct whatever
+  // height a section happens to be. A rAF guard keeps it to one measurement per
+  // frame, so it costs about as much as the observer would have.
   useEffect(() => {
     if (!data) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActive(visible.target.id);
-      },
-      { rootMargin: "-20% 0px -70% 0px", threshold: [0.1, 0.5] },
-    );
-    NAV.forEach((n) => {
-      const el = document.getElementById(n.id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const tops = NAV.map((item) => {
+        const el = document.getElementById(item.id);
+        return { id: item.id, top: el ? el.getBoundingClientRect().top : Infinity };
+      });
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      // The line the reader is actually reading at, a third of the way down.
+      setActive(pickActiveSection(tops, window.innerHeight * 0.33, atBottom));
+    };
+
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [data]);
 
   const occupancyCells = useMemo(

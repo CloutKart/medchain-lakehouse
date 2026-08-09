@@ -179,7 +179,13 @@ export function Rail({
       <ul className="rail__list">
         {items.map((i) => (
           <li key={i.id}>
-            <a href={`#${i.id}`} className={active === i.id ? "is-active" : undefined}>
+            <a
+              href={`#${i.id}`}
+              className={active === i.id ? "is-active" : undefined}
+              // Screen readers get the current section from this, not from the
+              // border colour that sights users read it from.
+              aria-current={active === i.id ? "true" : undefined}
+            >
               <span className="rail__label">{i.label}</span>
               <span className="rail__hint">{i.hint}</span>
             </a>

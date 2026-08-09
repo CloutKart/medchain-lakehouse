@@ -9,6 +9,12 @@
 
 @import "./tokens.css";
 
+html {
+  /* Rail links jump between sections; gliding makes the movement legible. The
+     reduced-motion block in tokens.css turns this off for readers who ask. */
+  scroll-behavior: smooth;
+}
+
 /* ------------------------------------------------------------------ boot */
 
 .boot {
