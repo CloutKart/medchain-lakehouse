@@ -37,6 +37,11 @@ from medchain.utils.tables import read, register_table, table_exists
 log = get_logger("medchain.gold.facts")
 
 
+# Target size for one Parquet file. Delta's own guidance is 128MB-1GB; at this
+# volume every fact fits comfortably inside a handful of files.
+TARGET_ROWS_PER_FILE = 250_000
+
+
 def _write(
     df: DataFrame,
     spark: SparkSession,
@@ -44,9 +49,34 @@ def _write(
     name: str,
     *,
     partition_by: list[str] | None = None,
+    row_count: int | None = None,
 ) -> int:
+    """Write a Gold table, controlling file count.
+
+    These facts are **not** partitioned by date, and that is a deliberate reversal.
+    They were, and it produced 9,864 files holding 619,601 rows — 62 rows per file,
+    across ~1,100 daily partitions. Partitioning below roughly a gigabyte per
+    partition costs far more than it saves: thousands of file opens per query, a
+    Delta log bloated with tiny adds, and on ADLS a per-transaction charge for each
+    one. The whole fact is about 100MB.
+
+    Date pruning does not need physical partitions. Delta keeps min/max statistics
+    per file, so a date filter skips files on statistics alone, and the OPTIMIZE
+    ZORDER in the maintenance step clusters the join keys that actually get filtered.
+
+    ``coalesce`` rather than ``repartition``: it avoids a shuffle, and the input is
+    already the right order coming out of the window functions.
+    """
     target = cfg.table_path("gold", name)
-    writer = df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
+
+    if partition_by:
+        out = df
+    else:
+        n_rows = row_count if row_count is not None else df.count()
+        files = max(1, min(64, -(-n_rows // TARGET_ROWS_PER_FILE)))
+        out = df.coalesce(files)
+
+    writer = out.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
     if partition_by:
         writer = writer.partitionBy(*partition_by)
     writer.save(target)
@@ -223,7 +253,7 @@ def build_fact_patient_visit(spark: SparkSession, cfg: Config, ctx: RunContext) 
         )
         .withColumnRenamed("_prev_hospital", "previous_hospital_id")
     )
-    return _write(out, spark, cfg, "fact_patient_visit", partition_by=["admission_date"])
+    return _write(out, spark, cfg, "fact_patient_visit")
 
 
 def build_fact_claim_lifecycle(spark: SparkSession, cfg: Config, ctx: RunContext) -> int:
@@ -275,7 +305,7 @@ def build_fact_claim_lifecycle(spark: SparkSession, cfg: Config, ctx: RunContext
             "dw_updated_at",
         )
     )
-    return _write(out, spark, cfg, "fact_claim_lifecycle", partition_by=["status_date"])
+    return _write(out, spark, cfg, "fact_claim_lifecycle")
 
 
 def build_fact_billing_reconciliation(spark: SparkSession, cfg: Config, ctx: RunContext) -> int:
@@ -420,7 +450,7 @@ def build_fact_bed_occupancy(spark: SparkSession, cfg: Config, ctx: RunContext) 
             "dw_updated_at",
         )
     )
-    return _write(out, spark, cfg, "fact_bed_occupancy", partition_by=["occupancy_date"])
+    return _write(out, spark, cfg, "fact_bed_occupancy")
 
 
 def run(spark: SparkSession, cfg: Config, ctx: RunContext) -> dict[str, int]:

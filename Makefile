@@ -134,6 +134,9 @@ upload:  ## Push generated data to the ADLS landing container
 deploy:  ## Build the wheel and deploy notebooks + ADF pipelines
 	./infra/deploy.sh
 
+run-azure:  ## Create/update the Databricks job and trigger a pipeline run
+	./infra/run_pipeline.sh
+
 stop:  ## Terminate every running Databricks cluster
 	./infra/stop_clusters.sh
 

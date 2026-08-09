@@ -49,11 +49,11 @@
       },
       "storage_account": {
         "type": "String",
-        "defaultValue": "stmedchain00eedd95"
+        "defaultValue": "${STORAGE_ACCOUNT}"
       },
       "wheel_path": {
         "type": "String",
-        "defaultValue": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
+        "defaultValue": "${WHEEL_PATH}"
       }
     },
     "variables": {

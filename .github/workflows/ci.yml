@@ -29,8 +29,8 @@ jobs:
           uv venv --python 3.11
           uv pip install -e '.[local,generate,web,dev]'
 
-      - run: uv run ruff check src tests dashboards
-      - run: uv run ruff format --check src tests dashboards
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
       - run: uv run mypy src
 
   test:

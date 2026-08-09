@@ -34,7 +34,7 @@ flowchart TB
 
   L --> B --> S --> G
   S -.rejected rows.-> Q
-  G --> ST["Streamlit dashboard"]
+  G --> ST["React dashboard (static)"]
 ```
 
 ## Layer contracts

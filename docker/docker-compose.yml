@@ -20,9 +20,14 @@ services:
 
   dashboard:
     extends: dev
-    command: uv run streamlit run dashboards/streamlit_app.py --server.address 0.0.0.0
+    # Exports Gold to JSON, then serves the built dashboard. The export is Python;
+    # the frontend build needs Node, which the dev image does not carry — so this
+    # serves a build produced by `make web-build` on the host.
+    command: >
+      sh -c "uv run medchain-web-export &&
+             python3 -m http.server 4173 --directory dashboards/web/dist"
     ports:
-      - "8501:8501"
+      - "4173:4173"
 
 volumes:
   medchain-data:

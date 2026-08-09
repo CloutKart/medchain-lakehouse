@@ -5,7 +5,7 @@ and Delta Lake, resolving patient identity, claim history, and insurance
 reconciliation across a fictional 8-hospital network.
 
 **Stack** — Azure Data Lake Storage Gen2 · Azure Data Factory · Azure Databricks ·
-Delta Lake · PySpark 3.5 · Unity Catalog · Streamlit
+Delta Lake · PySpark 3.5 · Unity Catalog · React
 
 ---
 
@@ -72,7 +72,7 @@ flowchart LR
   BRZ -->|PySpark| SLV[["silver/"]]
   SLV -->|PySpark| GLD[["gold/<br/>6 dims · 4 facts"]]
   GLD --> DQ["dq_scorecard"]
-  GLD --> ST["Streamlit"]
+  GLD --> ST["React dashboard"]
 
   ADF{{"Azure Data Factory<br/>pl_master"}} -.orchestrates.-> BRZ & SLV & GLD & DQ
 ```
@@ -152,7 +152,8 @@ make setup                 # Python 3.11 venv + project-local Temurin JDK 17
 make doctor                # verify Spark 3.5 + Delta 3.2 actually work
 make gen SCALE=1.0         # 3 years of synthetic source data (~2 min, 600 MB)
 make run-local             # bronze -> silver -> gold -> quality (~10 min)
-make dashboard             # Streamlit over the Gold layer
+make web-install           # frontend dependencies (once)
+make web                   # export Gold to JSON, build and serve the dashboard
 ```
 
 `make test` runs the unit and Spark suites; `make test-integration` runs the full
@@ -191,7 +192,7 @@ src/medchain/    generate · bronze · silver · gold · quality · utils
 notebooks/       thin Databricks wrappers around the package
 adf/             Data Factory pipeline definitions
 infra/           provision · budget · upload · deploy · cost · stop · teardown
-dashboards/      Streamlit app
+dashboards/web/  React dashboard (Vite + TypeScript, static build)
 tests/           unit (32) · spark (14) · integration (11)
 docs/            architecture · lineage · runbook · data dictionary · ADRs
 ```
@@ -206,6 +207,7 @@ docs/            architecture · lineage · runbook · data dictionary · ADRs
 | [data_dictionary.md](docs/data_dictionary.md) | Every Gold column |
 | [business_questions.md](docs/business_questions.md) | The 7 questions, with SQL and answers |
 | [scorecard.md](docs/scorecard.md) | Quality framework and current results |
+| [dashboard](dashboards/web/) | React dashboard — charts, palette, layout |
 | [cost_log.md](docs/cost_log.md) | Azure spend tracking |
 | [adr/](docs/adr/) | Five decision records |
 
