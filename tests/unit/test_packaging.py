@@ -13,6 +13,7 @@ with a missing-file error that points at a path nobody recognises.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -83,6 +84,61 @@ class TestWheelContents:
             assert f"medchain/conf/{relative}" in names, (
                 f"{relative} is not in {wheel.name}; the cluster would not find it"
             )
+
+
+class TestWheelDependencies:
+    """The wheel must not declare anything the Databricks runtime already provides.
+
+    Installing it as a cluster library runs pip against the runtime's own
+    environment. Declaring pyspark, pandas or numpy makes pip *upgrade* them, and
+    Databricks' compiled modules cannot import against the new versions. The
+    observed failure was numpy 1.x -> 2.4.6, which killed the Python kernel with
+    "Failure starting repl" before any pipeline code ran — six minutes of cluster
+    time to learn nothing about the pipeline.
+
+    Everything the runtime supplies belongs in the `local` extra instead.
+    """
+
+    RUNTIME_PROVIDED = {
+        "pyspark",
+        "delta-spark",
+        "pandas",
+        "numpy",
+        "pyarrow",
+        "pyyaml",
+        "python-dateutil",
+        "six",
+    }
+
+    def _pyproject(self) -> dict:
+        import tomllib
+
+        return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+
+    def test_base_dependencies_avoid_runtime_packages(self):
+        declared = self._pyproject()["project"].get("dependencies", [])
+        names = {re.split(r"[<>=!\[ ]", d.strip())[0].lower().replace("_", "-") for d in declared}
+        clashes = names & self.RUNTIME_PROVIDED
+        assert not clashes, (
+            f"{sorted(clashes)} are provided by Databricks Runtime and must live in the "
+            "`local` extra. Declaring them here upgrades the runtime's copies and "
+            "breaks the cluster's Python kernel."
+        )
+
+    def test_local_extra_supplies_them_for_development(self):
+        extras = self._pyproject()["project"]["optional-dependencies"]
+        assert "local" in extras, "the `local` extra must exist for local/CI runs"
+        names = {re.split(r"[<>=!\[ ]", d.strip())[0].lower() for d in extras["local"]}
+        assert {"pyspark", "delta-spark"} <= names
+
+    def test_install_sites_use_the_local_extra(self):
+        """Local dev, CI and Docker must all install `local`, or Spark is missing."""
+        for relative in ("Makefile", ".github/workflows/ci.yml", "docker/Dockerfile.dev"):
+            text = (REPO_ROOT / relative).read_text()
+            if "generate,dashboard,dev" in text:
+                assert "local,generate,dashboard,dev" in text, (
+                    f"{relative} installs the extras without `local`; Spark would be absent"
+                )
 
 
 class TestNoAccidentalDataDependency:

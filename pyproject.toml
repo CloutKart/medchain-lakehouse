@@ -3,17 +3,29 @@ name = "medchain"
 version = "0.1.0"
 description = "MedChain Analytics — hospital claims & patient journey lakehouse (Bronze/Silver/Gold on Delta Lake)"
 requires-python = "==3.11.*"
-dependencies = [
-    # Pinned to Databricks Runtime 15.4 LTS: Spark 3.5.0, Python 3.11, JDK 17.
-    # Local runs and cluster runs must behave identically, so these are exact pins.
+# Deliberately empty.
+#
+# This wheel is installed as a library on a Databricks cluster, and every package it
+# would otherwise declare — pyspark, delta-spark, pandas, numpy, pyyaml — is already
+# provided by the runtime. Declaring them makes pip *upgrade* the runtime's copies:
+# numpy went from 1.x to 2.4.6, Databricks' own compiled modules could not import
+# against it, and the cluster failed with "Failure starting repl" before a single
+# line of pipeline code ran.
+#
+# So the runtime's packages live in the `local` extra, which local development, CI
+# and Docker install and the cluster does not.
+dependencies = []
+
+[project.optional-dependencies]
+# Everything Databricks Runtime 15.4 LTS already provides. Pinned to match it, so
+# local behaviour and cluster behaviour agree.
+local = [
     "pyspark==3.5.0",
     "delta-spark==3.2.0",
     "pyyaml>=6.0",
     "pandas>=2.2",
     "python-dateutil>=2.9",
 ]
-
-[project.optional-dependencies]
 generate = [
     "faker>=30.0",
     "numpy>=1.26",

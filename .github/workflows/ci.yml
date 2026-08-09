@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,dashboard,dev]'
 
       - run: uv run ruff check src tests dashboards
       - run: uv run ruff format --check src tests dashboards
@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,dashboard,dev]'
 
       - name: Verify the toolchain can start Spark and Delta
         run: uv run python -m medchain.doctor
@@ -101,7 +101,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv --python 3.11
-          uv pip install -e '.[generate,dashboard,dev]'
+          uv pip install -e '.[local,generate,dashboard,dev]'
 
       - name: Integration tests
         run: uv run pytest tests/integration -q --junitxml=junit-integration.xml

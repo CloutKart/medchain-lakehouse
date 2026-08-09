@@ -433,13 +433,6 @@ wheels = [
 name = "medchain"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "delta-spark" },
-    { name = "pandas" },
-    { name = "pyspark" },
-    { name = "python-dateutil" },
-    { name = "pyyaml" },
-]
 
 [package.optional-dependencies]
 dashboard = [
@@ -459,27 +452,34 @@ generate = [
     { name = "faker" },
     { name = "numpy" },
 ]
+local = [
+    { name = "delta-spark" },
+    { name = "pandas" },
+    { name = "pyspark" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "delta-spark", specifier = "==3.2.0" },
+    { name = "delta-spark", marker = "extra == 'local'", specifier = "==3.2.0" },
     { name = "deltalake", marker = "extra == 'dashboard'", specifier = ">=0.20" },
     { name = "duckdb", marker = "extra == 'dashboard'", specifier = ">=1.1" },
     { name = "faker", marker = "extra == 'generate'", specifier = ">=30.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "numpy", marker = "extra == 'generate'", specifier = ">=1.26" },
-    { name = "pandas", specifier = ">=2.2" },
+    { name = "pandas", marker = "extra == 'local'", specifier = ">=2.2" },
     { name = "plotly", marker = "extra == 'dashboard'", specifier = ">=5.24" },
-    { name = "pyspark", specifier = "==3.5.0" },
+    { name = "pyspark", marker = "extra == 'local'", specifier = "==3.5.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "python-dateutil", specifier = ">=2.9" },
-    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "python-dateutil", marker = "extra == 'local'", specifier = ">=2.9" },
+    { name = "pyyaml", marker = "extra == 'local'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "streamlit", marker = "extra == 'dashboard'", specifier = ">=1.40" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
-provides-extras = ["generate", "dashboard", "dev"]
+provides-extras = ["local", "generate", "dashboard", "dev"]
 
 [[package]]
 name = "mypy"

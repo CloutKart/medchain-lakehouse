@@ -36,7 +36,7 @@ jdk:  ## Install a project-local Temurin JDK 17 (no sudo, system JDK untouched)
 .PHONY: setup
 setup: jdk  ## Create the venv and install all dependency groups
 	$(UV) venv --python 3.11
-	$(UV) pip install -e '.[generate,dashboard,dev]'
+	$(UV) pip install -e '.[local,generate,dashboard,dev]'
 	@echo "Setup complete. JAVA_HOME=$(JAVA_HOME)"
 
 .PHONY: doctor
