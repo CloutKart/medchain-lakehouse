@@ -272,7 +272,7 @@ def clinical(con) -> dict[str, Any]:
             JOIN dim_hospital h ON v.hospital_sk = h.hospital_sk
             WHERE v.is_inpatient
             GROUP BY 1, 2
-            ORDER BY (AVG(CAST(v.readmit_30d_network AS INT)) - AVG(CAST(v.readmit_30d_same_hospital AS INT))) DESC
+            ORDER BY (AVG(CAST(v.readmit_30d_network AS INT)) - AVG(CAST(v.readmit_30d_same_hospital AS INT))) DESC, h.hospital_name
         """,
         ),
         # Two series on one time axis, emitted separately so the frontend renders two
@@ -308,7 +308,7 @@ def clinical(con) -> dict[str, Any]:
             JOIN dim_procedure p ON v.procedure_sk = p.procedure_sk
             WHERE v.is_inpatient
             GROUP BY 1, 2 HAVING COUNT(*) >= 200
-            ORDER BY episodes DESC LIMIT 12
+            ORDER BY episodes DESC, p.procedure_name LIMIT 12
         """,
         ),
     }
@@ -327,6 +327,7 @@ def operational(con) -> dict[str, Any]:
             FROM fact_bed_occupancy b
             JOIN dim_hospital h ON b.hospital_sk = h.hospital_sk
             GROUP BY 1, 2
+            ORDER BY 1, 2
         """,
         ),
         "occupancy_monthly": rows(
@@ -351,7 +352,7 @@ def operational(con) -> dict[str, Any]:
             JOIN dim_hospital h ON b.hospital_sk = h.hospital_sk
             GROUP BY 1, 2, 3
             HAVING SUM(CASE WHEN b.occupancy_rate >= 0.85 THEN 1 ELSE 0 END) > 20
-            ORDER BY days_above_85 DESC LIMIT 20
+            ORDER BY days_above_85 DESC, h.hospital_name, b.ward_id LIMIT 20
         """,
         ),
         # Diverging: signed difference around zero.
@@ -370,7 +371,7 @@ def operational(con) -> dict[str, Any]:
                    COALESCE(n.naive, 0)                 AS naive,
                    COALESCE(n.naive, 0) - COALESCE(p.correct, 0) AS misattributed
             FROM pit p FULL OUTER JOIN naive n ON p.department = n.department
-            ORDER BY misattributed
+            ORDER BY misattributed, department
         """,
         ),
         "doctor_utilisation": rows(
@@ -382,7 +383,7 @@ def operational(con) -> dict[str, Any]:
                    CAST(COUNT(*) AS DOUBLE) / NULLIF(COUNT(DISTINCT doctor_id), 0) AS per_doctor
             FROM fact_patient_visit
             WHERE department_at_visit IS NOT NULL
-            GROUP BY 1 ORDER BY per_doctor DESC
+            GROUP BY 1 ORDER BY per_doctor DESC, department
         """,
         ),
     }
@@ -396,12 +397,18 @@ def financial(con) -> dict[str, Any]:
         "waterfall": rows(
             con,
             """
-            SELECT 'Billed'            AS stage, SUM(billed_amount)     AS amount, 'total'       AS kind, FALSE AS recoverable FROM fact_billing_reconciliation
-            UNION ALL SELECT 'Exclusions',       -SUM(excluded_amount),  'deduction', FALSE FROM fact_billing_reconciliation
-            UNION ALL SELECT 'Room rent excess', -SUM(room_rent_excess), 'deduction', TRUE  FROM fact_billing_reconciliation
-            UNION ALL SELECT 'Co-pay',           -SUM(copay_amount),     'deduction', FALSE FROM fact_billing_reconciliation
-            UNION ALL SELECT 'Other deductions', -SUM(other_deduction),  'deduction', FALSE FROM fact_billing_reconciliation
-            UNION ALL SELECT 'Net reimbursed',    SUM(net_reimbursement),'total',     FALSE FROM fact_billing_reconciliation
+            -- seq is not decoration. A waterfall's order is semantic: it is the TPA
+            -- deduction cascade (exclusions, then room-rent cap, then co-pay, then the
+            -- residual), and reordering it would show a sequence the rules engine never
+            -- applies. SQL does not guarantee UNION ALL preserves branch order, so the
+            -- order is stated rather than assumed.
+            SELECT 1 AS seq, 'Billed'    AS stage, SUM(billed_amount)     AS amount, 'total'       AS kind, FALSE AS recoverable FROM fact_billing_reconciliation
+            UNION ALL SELECT 2, 'Exclusions',       -SUM(excluded_amount),  'deduction', FALSE FROM fact_billing_reconciliation
+            UNION ALL SELECT 3, 'Room rent excess', -SUM(room_rent_excess), 'deduction', TRUE  FROM fact_billing_reconciliation
+            UNION ALL SELECT 4, 'Co-pay',           -SUM(copay_amount),     'deduction', FALSE FROM fact_billing_reconciliation
+            UNION ALL SELECT 5, 'Other deductions', -SUM(other_deduction),  'deduction', FALSE FROM fact_billing_reconciliation
+            UNION ALL SELECT 6, 'Net reimbursed',    SUM(net_reimbursement),'total',     FALSE FROM fact_billing_reconciliation
+            ORDER BY seq
         """,
         ),
         "gap_by_hospital": rows(
@@ -416,7 +423,7 @@ def financial(con) -> dict[str, Any]:
             FROM fact_billing_reconciliation r
             JOIN dim_hospital h ON r.hospital_sk = h.hospital_sk
             JOIN dim_insurer  i ON r.insurer_sk = i.insurer_sk
-            GROUP BY 1, 2, 3 ORDER BY gap DESC
+            GROUP BY 1, 2, 3 ORDER BY gap DESC, h.hospital_name, i.insurer_name
         """,
         ),
         # Ordered stages rather than a funnel: the question is how many claims
@@ -428,6 +435,7 @@ def financial(con) -> dict[str, Any]:
                    COUNT(DISTINCT claim_id) AS claims,
                    AVG(days_in_prev_status) AS avg_days_in_prev
             FROM fact_claim_lifecycle GROUP BY 1
+            ORDER BY claims DESC, status_code
         """,
         ),
         "dwell_by_stage": rows(
@@ -439,7 +447,7 @@ def financial(con) -> dict[str, Any]:
             FROM fact_claim_lifecycle f
             JOIN dim_insurer i ON f.insurer_sk = i.insurer_sk
             WHERE f.prev_status IS NOT NULL AND f.days_in_prev_status IS NOT NULL
-            GROUP BY 1, 2 ORDER BY median_days DESC
+            GROUP BY 1, 2 ORDER BY median_days DESC, insurer_name, stage
         """,
         ),
         "denial_reasons": rows(
@@ -451,14 +459,14 @@ def financial(con) -> dict[str, Any]:
                    COUNT(DISTINCT hospital_sk)     AS hospitals_affected
             FROM fact_claim_lifecycle
             WHERE status_code = 'Rejected' AND rejection_reason IS NOT NULL
-            GROUP BY 1 ORDER BY value DESC
+            GROUP BY 1 ORDER BY value DESC, rejection_reason
         """,
         ),
         "variance_classes": rows(
             con,
             """
             SELECT variance_class, COUNT(*) AS claims
-            FROM fact_billing_reconciliation GROUP BY 1 ORDER BY claims DESC
+            FROM fact_billing_reconciliation GROUP BY 1 ORDER BY claims DESC, variance_class
         """,
         ),
     }
@@ -508,7 +516,7 @@ def reference(con) -> dict[str, Any]:
             con,
             """
             SELECT icd10_source, COUNT(*) AS procedures
-            FROM dim_procedure GROUP BY 1 ORDER BY procedures DESC
+            FROM dim_procedure GROUP BY 1 ORDER BY procedures DESC, icd10_source
         """,
         ),
         "counts": one(

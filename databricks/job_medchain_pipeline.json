@@ -116,6 +116,30 @@
           "task_key": "gold"
         }
       ]
+    },
+    {
+      "task_key": "web_export",
+      "job_cluster_key": "medchain_single_node",
+      "notebook_task": {
+        "notebook_path": "/Shared/medchain/40_web_export",
+        "base_parameters": {
+          "logical_date": "2025-03-31",
+          "env": "azure",
+          "storage_account": "${STORAGE_ACCOUNT}",
+          "run_id": "{{job.run_id}}"
+        }
+      },
+      "libraries": [
+        {
+          "whl": "${WHEEL_PATH}"
+        }
+      ],
+      "timeout_seconds": 1800,
+      "depends_on": [
+        {
+          "task_key": "quality"
+        }
+      ]
     }
   ]
 }

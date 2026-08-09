@@ -35,6 +35,64 @@ def sql_text(name: str) -> str:
 ALL_SQL = "\n".join(sql_text(name) for name in PANEL_SOURCES)
 
 
+class TestRowOrderIsDeterministic:
+    """A query without a total ORDER BY returns rows in whatever order the engine
+    finds convenient, and the two backends do not find the same order convenient.
+
+    This was found by diffing the Azure export against the local one: three panels
+    differed on every row. Not one value was wrong — the *rows* were identical
+    multisets, ordered differently. It matters because the dashboard renders these
+    lists in array order, so the same warehouse would draw its bars in a different
+    sequence depending on which engine exported it.
+
+    It is the same defect as the window-ordering bug in Gold, one layer up: an
+    ordering that is not a total order. Ties on the sort key are resolved by the
+    engine, not by us.
+    """
+
+    QUERIES = re.findall(
+        r'"(\w+)":\s*rows\(\s*\n\s*con,\s*\n\s*"""(.*?)"""',
+        __import__("inspect").getsource(export),
+        re.S,
+    )
+
+    def test_the_queries_were_actually_found(self):
+        """Guard the regex. A parser that silently matches nothing passes everything."""
+        assert len(self.QUERIES) >= 15, (
+            f"only found {len(self.QUERIES)} queries — the extraction regex has "
+            "drifted from how export.py is written, so the checks below are vacuous"
+        )
+
+    @pytest.mark.parametrize("name,sql", QUERIES, ids=[q[0] for q in QUERIES])
+    def test_every_multi_row_query_orders_its_rows(self, name, sql):
+        assert "ORDER BY" in sql.upper(), (
+            f"{name} has no ORDER BY, so its row order is engine-defined and the "
+            "local and cluster exports can disagree"
+        )
+
+    @pytest.mark.parametrize("name,sql", QUERIES, ids=[q[0] for q in QUERIES])
+    def test_ordering_by_an_aggregate_alone_is_not_a_total_order(self, name, sql):
+        """`ORDER BY median_days DESC` is not deterministic — medians tie.
+
+        Ordering on a measure needs a tie-break on something unique per row, which in
+        these grouped queries means the grouping keys.
+        """
+        match = re.search(r"ORDER BY\s+(.*?)(?:\n\s*\"\"\"|$)", sql, re.S | re.I)
+        if not match:
+            pytest.skip("no ORDER BY — covered by the test above")
+        terms = [t.strip() for t in match.group(1).split(",") if t.strip()]
+
+        # A single ordinal (ORDER BY 1) or a single measure is the risky shape. Two or
+        # more terms means a tie-break is present.
+        if len(terms) > 1:
+            return
+        only = terms[0].upper().removesuffix(" DESC").removesuffix(" ASC").strip()
+        assert only in {"1", "SEQ"} or only.isdigit(), (
+            f"{name} orders on the single term {only!r} with no tie-break; if two rows "
+            "share that value their relative order is engine-defined"
+        )
+
+
 class TestDialectPortability:
     def test_no_postgres_style_casts(self):
         """`expr::TYPE` is DuckDB and Postgres.
