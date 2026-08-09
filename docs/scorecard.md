@@ -1,6 +1,6 @@
 # Data Quality Scorecard
 
-Results from the full 3-year dataset: **49 checks · 0 blocking failures · 3 warnings**.
+Results from the full 3-year dataset: **50 checks · 0 blocking failures · 2 warnings**.
 
 ## Two kinds of measurement
 
@@ -32,10 +32,10 @@ the metric definitions and the scorecard table are unchanged.
 
 | Metric | Value | Target |
 |---|---|---|
-| Precision | **0.9987** | ≥ 0.98 |
-| Recall | **0.9120** | ≥ 0.85 |
+| Precision | **0.9988** | ≥ 0.98 |
+| Recall | **0.9119** | ≥ 0.85 |
 | F1 | **0.9534** | ≥ 0.95 |
-| Duplicate collapse | 219,600 → 183,460 (16.5%) | — |
+| Duplicate collapse | 219,600 → 183,469 (16.5%) | — |
 
 Pairwise rather than cluster-exact: the useful question is "of the record pairs we said
 are the same person, how many are?", not "did we reproduce every cluster perfectly".
@@ -58,7 +58,7 @@ safety issue and leaving a duplicate is an inconvenience.
 
 | Metric | Value | Target |
 |---|---|---|
-| Reconstruction coverage | **92.6%** (706,422 of 762,984 true transitions) | ≥ 0.90 |
+| Reconstruction coverage | **92.6%** (706,612 of 762,848 true transitions) | ≥ 0.90 |
 | Reconstruction fidelity | **100%** — zero invented transitions | 1.0 (blocking) |
 | Claims reaching a terminal state | 90.0% | — |
 | Illegal transitions | **0** | 0 |
@@ -89,8 +89,8 @@ Against what the insurer actually paid:
 
 | Metric | Value |
 |---|---|
-| Rule-predictable claims explained to within ₹1 | **96.1%** |
-| All adjudicated claims (context only) | 53.2% |
+| Rule-predictable claims explained to within ₹1 | **96.1%** (101,526 of 105,664) |
+| All adjudicated claims (context only) | 53.1% |
 
 The blended figure is reported but is not the headline, because some claims are not
 predictable from rules by construction: a rejected claim pays zero regardless of the
@@ -102,8 +102,8 @@ reduction no rule encodes. Averaging those in makes a working engine look broken
 | Tier | Count | Share |
 |---|---|---|
 | `SOURCE` — supplied by the source | 368 | 92.0% |
-| `EXACT_NAME` — exact catalogue match after normalisation | 20 | 5.0% |
-| `FUZZY_NAME` — unambiguous near-match | 7 | 1.8% |
+| `EXACT_NAME` — exact catalogue match after normalisation | 21 | 5.2% |
+| `FUZZY_NAME` — unambiguous near-match | 6 | 1.5% |
 | `SPECIALTY` — specialty modal code, a placeholder | 5 | 1.2% |
 | `UNMAPPED` | 0 | 0.0% |
 | **Overall fill rate** | **400 / 400** | **100%** |
@@ -117,9 +117,9 @@ a diagnosis code can see which they are looking at.
 
 | Metric | Value |
 |---|---|
-| Claims linked to a bill | **99.9%** (208,283 of 208,456) |
+| Claims linked to a bill | **99.9%** (208,281 of 208,456) |
 | Corroborated by both matching routes | 36.6% |
-| Ambiguous, sent for review | 173 |
+| Ambiguous, sent for review | 175 |
 
 ## Structural checks
 
@@ -137,9 +137,19 @@ a diagnosis code can see which they are looking at.
 
 | Check | Value | Assessment |
 |---|---|---|
-| `fact_bed_occupancy.occupancy_rate_plausible` | 99.21% | 555 ward-days above 150% capacity, concentrated in the smallest wards. Investigated: a genuine finding about source ward sizing, not a pipeline defect. |
-| `fact_bed_occupancy.occupied_within_capacity` | 99.21% | Same 555 rows. |
-| `tpa.reconciliation_rate_all_claims` | 53.2% | Context metric with no threshold — see the TPA section above. |
+| `fact_bed_occupancy.occupancy_rate_plausible` | 99.81% | 132 ward-days of 70,624 above 150% capacity. |
+| `fact_bed_occupancy.occupied_within_capacity` | 99.81% | Same 132 rows. |
+
+**On the occupancy warning.** This check found a real defect and is retained because
+it did. The first run flagged 555 ward-days — traced to a ward mix that gave the
+smallest hospital a 4-bed paediatric ward, into which ordinary admission variance put
+10 patients. That is a 250% occupancy rate produced by a modelling artefact, not by a
+hospital under pressure. Enforcing a minimum ward size at the source cut it to 132.
+
+What remains, 0.19% of ward-days, is the genuine tail: surge days when a ward runs
+well over its nominal capacity, which happens in Indian hospitals during monsoon
+dengue peaks. The check stays at its threshold rather than being relaxed to make the
+dashboard green, because a warning that describes something true is doing its job.
 
 ## Querying the scorecard
 

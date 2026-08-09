@@ -82,7 +82,7 @@ Six dimensions, four facts. Two design choices carry most of the analytical valu
 difference is measurable: **60,990 consultations, 9.8% of all visits**.
 
 **Network-wide readmission.** `readmit_30d_network` (any hospital, via `mpi_id`)
-alongside `readmit_30d_same_hospital`. The gap — **2.94 percentage points** — is the
+alongside `readmit_30d_same_hospital`. The gap — **2.93 percentage points** — is the
 readmission cohort no single hospital can see.
 
 ## Portability

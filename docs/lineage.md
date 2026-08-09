@@ -107,7 +107,7 @@ visit spine ──► join patient_crosswalk on (hospital_id, patient_id) ──
 
 The partition key is the difference. Partitioning by `mpi_id` alone spans all eight
 hospitals; adding `hospital_id` reproduces what a single hospital can see. The gap is
-2.94 percentage points.
+2.93 percentage points.
 
 ## Provenance columns carried into Gold
 

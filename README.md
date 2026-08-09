@@ -34,25 +34,25 @@ Measured against ground truth, on 3 years of data (619,601 visits, 208,456 claim
 
 | What was destroyed | What was recovered | Metric |
 |---|---|---|
-| Patient identity across 8 registration systems | 219,600 registrations → 183,460 people | **F1 0.953** (precision 0.999, recall 0.912) |
-| Claim lifecycle history | 706,422 state transitions rebuilt from snapshots | **92.6% coverage, 100% fidelity** |
+| Patient identity across 8 registration systems | 219,600 registrations → 183,469 people | **F1 0.953** (precision 0.999, recall 0.912) |
+| Claim lifecycle history | 706,612 state transitions rebuilt from snapshots | **92.6% coverage, 100% fidelity** |
 | TPA deduction breakdown | Exclusions, room cap, co-pay, deduction | **100% match on all 5 components** |
-| ICD-10 codes (8% missing) | Tiered inference with provenance | **100% filled** — 5.0% exact, 1.8% fuzzy, 1.2% specialty |
-| Bill ↔ claim linkage (no shared key) | Two independent matching routes | **99.9% linked**, 173 sent for review |
+| ICD-10 codes (8% missing) | Tiered inference with provenance | **100% filled** — 5.2% exact, 1.5% fuzzy, 1.2% specialty |
+| Bill ↔ claim linkage (no shared key) | Two independent matching routes | **99.9% linked**, 175 sent for review |
 
 And what that buys the business:
 
-- **Readmission is understated by 2.94 percentage points** when each hospital counts
+- **Readmission is understated by 2.93 percentage points** when each hospital counts
   only its own returning patients (17.38%) instead of measuring across the network
   through resolved identities (20.31%).
 - **60,990 consultations — 9.8% of all visits — would be credited to the wrong
   department** without effective-dated doctor history.
-- **₹800 Cr of the ₹3,506 Cr billed is not reimbursed (22.8%)**, decomposed into
-  ₹443 Cr co-pay (contractual), ₹161 Cr exclusions (contractual) and **₹73 Cr room-rent
+- **₹806 Cr of the ₹3,527 Cr billed is not reimbursed (22.8%)**, decomposed into
+  ₹446 Cr co-pay (contractual), ₹162 Cr exclusions (contractual) and **₹74 Cr room-rent
   excess — the one bucket the hospital can actually recover** by matching admission
   room category to policy entitlement.
 
-`49 data quality checks · 0 blocking failures · 57 tests passing`
+`50 data quality checks · 0 blocking failures · 57 tests passing`
 
 ---
 

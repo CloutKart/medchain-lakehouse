@@ -66,19 +66,21 @@ def main(argv: list[str] | None = None) -> int:
             ]
             for question in questions:
                 pdf = spark.sql(question.sql).limit(args.rows).toPandas()
-                sections.extend([
-                    f"## BQ{question.number} — {question.audience}\n",
-                    f"> **{question.question}**\n",
-                    "### Result\n",
-                    _markdown_table(pdf, args.rows) + "\n",
-                    "### Interpretation\n",
-                    question.interpretation + "\n",
-                    "<details>\n<summary>SQL</summary>\n",
-                    "```sql",
-                    question.sql.strip(),
-                    "```\n</details>\n",
-                    "---\n",
-                ])
+                sections.extend(
+                    [
+                        f"## BQ{question.number} — {question.audience}\n",
+                        f"> **{question.question}**\n",
+                        "### Result\n",
+                        _markdown_table(pdf, args.rows) + "\n",
+                        "### Interpretation\n",
+                        question.interpretation + "\n",
+                        "<details>\n<summary>SQL</summary>\n",
+                        "```sql",
+                        question.sql.strip(),
+                        "```\n</details>\n",
+                        "---\n",
+                    ]
+                )
             target = Path(__file__).resolve().parents[3] / "docs" / "business_questions.md"
             target.write_text("\n".join(sections))
             print(f"Wrote {target}")
