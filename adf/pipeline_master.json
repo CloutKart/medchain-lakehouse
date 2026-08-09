@@ -10,18 +10,56 @@
       "sources": {
         "type": "Array",
         "defaultValue": [
-          { "name": "patient_registrations", "pattern": "*.csv", "format": "csv" },
-          { "name": "insurance_claims", "pattern": "*.csv", "format": "csv" },
-          { "name": "claim_line_items", "pattern": "*.csv", "format": "csv" },
-          { "name": "billing_transactions", "pattern": "*.csv", "format": "csv" },
-          { "name": "bed_occupancy_log", "pattern": "*.csv", "format": "csv" },
-          { "name": "procedure_master", "pattern": "*.csv", "format": "csv" },
-          { "name": "doctor_assignments", "pattern": "*.json", "format": "json" }
+          {
+            "name": "patient_registrations",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "insurance_claims",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "claim_line_items",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "billing_transactions",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "bed_occupancy_log",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "procedure_master",
+            "pattern": "*.csv",
+            "format": "csv"
+          },
+          {
+            "name": "doctor_assignments",
+            "pattern": "*.json",
+            "format": "json"
+          }
         ]
+      },
+      "storage_account": {
+        "type": "String",
+        "defaultValue": "stmedchain00eedd95"
+      },
+      "wheel_path": {
+        "type": "String",
+        "defaultValue": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
       }
     },
     "variables": {
-      "run_id": { "type": "String" }
+      "run_id": {
+        "type": "String"
+      }
     },
     "activities": [
       {
@@ -29,15 +67,28 @@
         "type": "SetVariable",
         "typeProperties": {
           "variableName": "run_id",
-          "value": { "value": "@pipeline().RunId", "type": "Expression" }
+          "value": {
+            "value": "@pipeline().RunId",
+            "type": "Expression"
+          }
         }
       },
       {
         "name": "IngestAllSources",
         "type": "ForEach",
-        "dependsOn": [{ "activity": "SetRunId", "dependencyConditions": ["Succeeded"] }],
+        "dependsOn": [
+          {
+            "activity": "SetRunId",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
         "typeProperties": {
-          "items": { "value": "@pipeline().parameters.sources", "type": "Expression" },
+          "items": {
+            "value": "@pipeline().parameters.sources",
+            "type": "Expression"
+          },
           "isSequential": false,
           "batchCount": 4,
           "activities": [
@@ -45,7 +96,10 @@
               "name": "IngestSource",
               "type": "ExecutePipeline",
               "typeProperties": {
-                "pipeline": { "referenceName": "pl_ingest_source", "type": "PipelineReference" },
+                "pipeline": {
+                  "referenceName": "pl_ingest_source",
+                  "type": "PipelineReference"
+                },
                 "waitOnCompletion": true,
                 "parameters": {
                   "source_name": "@item().name",
@@ -61,76 +115,181 @@
       {
         "name": "BronzeRegister",
         "type": "DatabricksNotebook",
-        "dependsOn": [{ "activity": "IngestAllSources", "dependencyConditions": ["Succeeded"] }],
-        "policy": { "timeout": "0.02:00:00", "retry": 1, "retryIntervalInSeconds": 120 },
+        "dependsOn": [
+          {
+            "activity": "IngestAllSources",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.02:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 120
+        },
         "typeProperties": {
           "notebookPath": "/Shared/medchain/00_bronze",
           "baseParameters": {
             "logical_date": "@pipeline().parameters.ingest_date",
             "run_id": "@variables('run_id')",
-            "env": "azure"
-          }
+            "env": "azure",
+            "storage_account": "@pipeline().parameters.storage_account"
+          },
+          "libraries": [
+            {
+              "whl": "@{pipeline().parameters.wheel_path}"
+            }
+          ]
         },
-        "linkedServiceName": { "referenceName": "ls_databricks_job", "type": "LinkedServiceReference" }
+        "linkedServiceName": {
+          "referenceName": "ls_databricks_job",
+          "type": "LinkedServiceReference"
+        }
       },
       {
         "name": "Silver",
         "type": "DatabricksNotebook",
-        "dependsOn": [{ "activity": "BronzeRegister", "dependencyConditions": ["Succeeded"] }],
-        "policy": { "timeout": "0.04:00:00", "retry": 1, "retryIntervalInSeconds": 180 },
+        "dependsOn": [
+          {
+            "activity": "BronzeRegister",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.04:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 180
+        },
         "typeProperties": {
           "notebookPath": "/Shared/medchain/10_silver",
           "baseParameters": {
             "logical_date": "@pipeline().parameters.ingest_date",
             "run_id": "@variables('run_id')",
-            "env": "azure"
-          }
+            "env": "azure",
+            "storage_account": "@pipeline().parameters.storage_account"
+          },
+          "libraries": [
+            {
+              "whl": "@{pipeline().parameters.wheel_path}"
+            }
+          ]
         },
-        "linkedServiceName": { "referenceName": "ls_databricks_job", "type": "LinkedServiceReference" }
+        "linkedServiceName": {
+          "referenceName": "ls_databricks_job",
+          "type": "LinkedServiceReference"
+        }
       },
       {
         "name": "Gold",
         "type": "DatabricksNotebook",
-        "dependsOn": [{ "activity": "Silver", "dependencyConditions": ["Succeeded"] }],
-        "policy": { "timeout": "0.03:00:00", "retry": 1, "retryIntervalInSeconds": 180 },
+        "dependsOn": [
+          {
+            "activity": "Silver",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.03:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 180
+        },
         "typeProperties": {
           "notebookPath": "/Shared/medchain/20_gold",
           "baseParameters": {
             "logical_date": "@pipeline().parameters.ingest_date",
             "run_id": "@variables('run_id')",
-            "env": "azure"
-          }
+            "env": "azure",
+            "storage_account": "@pipeline().parameters.storage_account"
+          },
+          "libraries": [
+            {
+              "whl": "@{pipeline().parameters.wheel_path}"
+            }
+          ]
         },
-        "linkedServiceName": { "referenceName": "ls_databricks_job", "type": "LinkedServiceReference" }
+        "linkedServiceName": {
+          "referenceName": "ls_databricks_job",
+          "type": "LinkedServiceReference"
+        }
       },
       {
         "name": "DataQuality",
         "type": "DatabricksNotebook",
-        "dependsOn": [{ "activity": "Gold", "dependencyConditions": ["Succeeded"] }],
-        "policy": { "timeout": "0.01:00:00", "retry": 0 },
+        "dependsOn": [
+          {
+            "activity": "Gold",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.01:00:00",
+          "retry": 0
+        },
         "typeProperties": {
           "notebookPath": "/Shared/medchain/30_quality",
           "baseParameters": {
             "logical_date": "@pipeline().parameters.ingest_date",
             "run_id": "@variables('run_id')",
-            "env": "azure"
-          }
+            "env": "azure",
+            "storage_account": "@pipeline().parameters.storage_account"
+          },
+          "libraries": [
+            {
+              "whl": "@{pipeline().parameters.wheel_path}"
+            }
+          ]
         },
-        "linkedServiceName": { "referenceName": "ls_databricks_job", "type": "LinkedServiceReference" }
+        "linkedServiceName": {
+          "referenceName": "ls_databricks_job",
+          "type": "LinkedServiceReference"
+        }
       },
       {
         "name": "AlertOnFailure",
         "type": "WebActivity",
         "description": "Fires when any upstream step fails. The 'Completed' dependency plus 'Failed' on the predecessors means this runs on failure only, and the pipeline still reports failure overall.",
         "dependsOn": [
-          { "activity": "IngestAllSources", "dependencyConditions": ["Failed"] },
-          { "activity": "Silver", "dependencyConditions": ["Failed"] },
-          { "activity": "Gold", "dependencyConditions": ["Failed"] },
-          { "activity": "DataQuality", "dependencyConditions": ["Failed"] }
+          {
+            "activity": "IngestAllSources",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          },
+          {
+            "activity": "Silver",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          },
+          {
+            "activity": "Gold",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          },
+          {
+            "activity": "DataQuality",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          }
         ],
-        "policy": { "timeout": "0.00:05:00", "retry": 1 },
+        "policy": {
+          "timeout": "0.00:05:00",
+          "retry": 1
+        },
         "typeProperties": {
-          "url": { "value": "@pipeline().globalParameters.alert_webhook_url", "type": "Expression" },
+          "url": {
+            "value": "@pipeline().globalParameters.alert_webhook_url",
+            "type": "Expression"
+          },
           "method": "POST",
           "body": {
             "value": "@json(concat('{\"pipeline\":\"pl_master\",\"run_id\":\"', pipeline().RunId, '\",\"ingest_date\":\"', pipeline().parameters.ingest_date, '\",\"status\":\"FAILED\"}'))",
@@ -139,7 +298,12 @@
         }
       }
     ],
-    "annotations": ["medchain", "orchestration"],
-    "folder": { "name": "medchain" }
+    "annotations": [
+      "medchain",
+      "orchestration"
+    ],
+    "folder": {
+      "name": "medchain"
+    }
   }
 }

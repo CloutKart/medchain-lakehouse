@@ -1,0 +1,121 @@
+{
+  "name": "medchain-pipeline",
+  "max_concurrent_runs": 1,
+  "job_clusters": [
+    {
+      "job_cluster_key": "medchain_single_node",
+      "new_cluster": {
+        "spark_version": "15.4.x-scala2.12",
+        "node_type_id": "Standard_D4s_v3",
+        "num_workers": 0,
+        "spark_conf": {
+          "spark.master": "local[*, 4]",
+          "spark.databricks.cluster.profile": "singleNode"
+        },
+        "custom_tags": {
+          "ResourceClass": "SingleNode",
+          "project": "medchain"
+        },
+        "data_security_mode": "SINGLE_USER",
+        "single_user_name": "1000020859@dit.edu.in",
+        "azure_attributes": {
+          "availability": "ON_DEMAND_AZURE",
+          "first_on_demand": 1
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "bronze",
+      "job_cluster_key": "medchain_single_node",
+      "notebook_task": {
+        "notebook_path": "/Shared/medchain/00_bronze",
+        "base_parameters": {
+          "logical_date": "2025-03-31",
+          "env": "azure",
+          "storage_account": "stmedchain00eedd95",
+          "run_id": "{{job.run_id}}"
+        }
+      },
+      "libraries": [
+        {
+          "whl": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
+        }
+      ],
+      "timeout_seconds": 5400
+    },
+    {
+      "task_key": "silver",
+      "job_cluster_key": "medchain_single_node",
+      "notebook_task": {
+        "notebook_path": "/Shared/medchain/10_silver",
+        "base_parameters": {
+          "logical_date": "2025-03-31",
+          "env": "azure",
+          "storage_account": "stmedchain00eedd95",
+          "run_id": "{{job.run_id}}"
+        }
+      },
+      "libraries": [
+        {
+          "whl": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
+        }
+      ],
+      "timeout_seconds": 10800,
+      "depends_on": [
+        {
+          "task_key": "bronze"
+        }
+      ]
+    },
+    {
+      "task_key": "gold",
+      "job_cluster_key": "medchain_single_node",
+      "notebook_task": {
+        "notebook_path": "/Shared/medchain/20_gold",
+        "base_parameters": {
+          "logical_date": "2025-03-31",
+          "env": "azure",
+          "storage_account": "stmedchain00eedd95",
+          "run_id": "{{job.run_id}}"
+        }
+      },
+      "libraries": [
+        {
+          "whl": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
+        }
+      ],
+      "timeout_seconds": 7200,
+      "depends_on": [
+        {
+          "task_key": "silver"
+        }
+      ]
+    },
+    {
+      "task_key": "quality",
+      "job_cluster_key": "medchain_single_node",
+      "notebook_task": {
+        "notebook_path": "/Shared/medchain/30_quality",
+        "base_parameters": {
+          "logical_date": "2025-03-31",
+          "env": "azure",
+          "storage_account": "stmedchain00eedd95",
+          "run_id": "{{job.run_id}}"
+        }
+      },
+      "libraries": [
+        {
+          "whl": "/Volumes/medchain/control/artifacts/medchain-0.1.0-py3-none-any.whl"
+        }
+      ],
+      "timeout_seconds": 3600,
+      "depends_on": [
+        {
+          "task_key": "gold"
+        }
+      ]
+    }
+  ]
+}

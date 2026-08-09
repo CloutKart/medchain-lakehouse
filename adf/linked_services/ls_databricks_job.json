@@ -6,7 +6,8 @@
     "authentication": "MSI",
     "workspaceResourceId": "${WORKSPACE_RESOURCE_ID}",
     "newClusterNodeType": "${CLUSTER_NODE_TYPE}",
-    "newClusterNumOfWorker": "1",
+    "_comment_workers": "0 workers. The singleNode profile above and a worker count are contradictory, and the driver alone is 4 vCPUs against a 4-vCPU regional quota — asking for a worker means the cluster never starts, and Databricks reports that as a timeout several minutes in.",
+    "newClusterNumOfWorker": "0",
     "newClusterVersion": "15.4.x-scala2.12",
     "newClusterSparkConf": {
       "spark.master": "local[*, 4]",
